@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "579775767696",
+    "project_id": "mipripity-signup",
+    "storage_bucket": "mipripity-signup.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:579775767696:android:4007e4df501939061d2415",
+        "android_client_info": {
+          "package_name": "com.appfoundry.previewer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "579775767696-bp06t62jluu8bqu1j17n7rsc40umt1os.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFUUu-CJ902phDcK_BWuKR6fiUgwzXb9I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "579775767696-bp06t62jluu8bqu1j17n7rsc40umt1os.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "579775767696-6r4rhlns21ucunihdkioniut25gtp3qn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.codelesslabs.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
