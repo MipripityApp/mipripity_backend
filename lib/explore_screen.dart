@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'shared/bottom_navigation.dart';
 
 class ExplorePage extends StatefulWidget {
-  const ExplorePage({Key? key}) : super(key: key);
+  const ExplorePage({super.key});
 
   @override
   State<ExplorePage> createState() => _ExplorePageState();

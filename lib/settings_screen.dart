@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'shared/bottom_navigation.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -1426,10 +1426,10 @@ class BottomNavigation extends StatelessWidget {
   final Function(String) onTabChange;
 
   const BottomNavigation({
-    Key? key,
+    super.key,
     required this.activeTab,
     required this.onTabChange,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

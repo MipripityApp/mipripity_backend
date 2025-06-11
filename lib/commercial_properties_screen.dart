@@ -35,7 +35,7 @@ class CommercialProperty {
 }
 
 class CommercialPropertiesScreen extends StatefulWidget {
-  const CommercialPropertiesScreen({Key? key}) : super(key: key);
+  const CommercialPropertiesScreen({super.key});
 
   @override
   State<CommercialPropertiesScreen> createState() => _CommercialPropertiesScreenState();

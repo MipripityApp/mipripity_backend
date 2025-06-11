@@ -7,10 +7,10 @@ class InvestmentSuccessScreen extends StatelessWidget {
   final int amount;
 
   const InvestmentSuccessScreen({
-    Key? key,
+    super.key,
     required this.investment,
     required this.amount,
-  }) : super(key: key);
+  });
 
   // Format price to Nigerian Naira
   String formatPrice(int price) {

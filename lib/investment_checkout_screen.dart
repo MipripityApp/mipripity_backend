@@ -7,10 +7,10 @@ class InvestmentCheckoutScreen extends StatefulWidget {
   final int? initialAmount;
 
   const InvestmentCheckoutScreen({
-    Key? key,
+    super.key,
     required this.investment,
     this.initialAmount,
-  }) : super(key: key);
+  });
 
   @override
   _InvestmentCheckoutScreenState createState() => _InvestmentCheckoutScreenState();

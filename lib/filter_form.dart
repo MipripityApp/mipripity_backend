@@ -23,12 +23,12 @@ class FilterForm extends StatefulWidget {
   final VoidCallback onClose;
 
   const FilterForm({
-    Key? key,
+    super.key,
     required this.selectedCategory,
     this.initialFilters = const {},
     required this.onFilterApplied,
     required this.onClose,
-  }) : super(key: key);
+  });
 
   @override
   State<FilterForm> createState() => _FilterFormState();

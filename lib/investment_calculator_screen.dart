@@ -8,9 +8,9 @@ class InvestmentCalculatorScreen extends StatefulWidget {
   final Map<String, dynamic> investment;
 
   const InvestmentCalculatorScreen({
-    Key? key,
+    super.key,
     required this.investment,
-  }) : super(key: key);
+  });
 
   @override
   _InvestmentCalculatorScreenState createState() => _InvestmentCalculatorScreenState();

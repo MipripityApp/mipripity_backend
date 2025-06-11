@@ -7,7 +7,7 @@ import 'forum_detail_screen.dart';
 import 'create_forum_screen.dart';
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({Key? key}) : super(key: key);
+  const ChatPage({super.key});
 
   @override
   State<ChatPage> createState() => _ChatPageState();

@@ -6,7 +6,7 @@ import 'shared/bottom_navigation.dart';
 import 'dart:async';
 
 class GetCoordinateScreen extends StatefulWidget {
-  const GetCoordinateScreen({Key? key}) : super(key: key);
+  const GetCoordinateScreen({super.key});
 
   @override
   State<GetCoordinateScreen> createState() => _GetCoordinateScreenState();

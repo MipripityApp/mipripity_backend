@@ -784,7 +784,7 @@ class _InvestmentVendorFormState extends State<InvestmentVendorForm> {
                   ),
                 ],
               ),
-            )).toList(),
+            )),
           ],
         ),
       ),

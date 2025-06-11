@@ -4,9 +4,9 @@ class LocationDetails extends StatefulWidget {
   final String locationId;
 
   const LocationDetails({
-    Key? key,
+    super.key,
     required this.locationId,
-  }) : super(key: key);
+  });
 
   @override
   State<LocationDetails> createState() => _LocationDetailsState();

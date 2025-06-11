@@ -9,10 +9,10 @@ class SharedBottomNavigation extends StatelessWidget {
   final Function(String) onTabChange;
 
   const SharedBottomNavigation({
-    Key? key,
+    super.key,
     required this.activeTab,
     required this.onTabChange,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -35,7 +35,7 @@ class MaterialProperty {
 }
 
 class MaterialPropertiesScreen extends StatefulWidget {
-  const MaterialPropertiesScreen({Key? key}) : super(key: key);
+  const MaterialPropertiesScreen({super.key});
 
   @override
   State<MaterialPropertiesScreen> createState() => _MaterialPropertiesScreenState();

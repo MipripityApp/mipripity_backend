@@ -9,13 +9,13 @@ class MapView extends StatefulWidget {
   final double longitude;
 
   const MapView({
-    Key? key,
+    super.key,
     required this.propertyId,
     required this.propertyTitle,
     required this.propertyAddress,
     required this.latitude,
     required this.longitude,
-  }) : super(key: key);
+  });
 
   @override
   State<MapView> createState() => _MapViewState();

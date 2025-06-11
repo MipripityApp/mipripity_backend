@@ -9,7 +9,7 @@ import 'shared/bottom_navigation.dart';
 class AddScreen extends StatefulWidget {
   final Function onNavigateBack;
 
-  const AddScreen({Key? key, required this.onNavigateBack}) : super(key: key);
+  const AddScreen({super.key, required this.onNavigateBack});
 
   @override
   State<AddScreen> createState() => _AddScreenState();
@@ -634,10 +634,10 @@ class NetworkSignalDisplay extends StatelessWidget {
   final double longitude;
 
   const NetworkSignalDisplay({
-    Key? key,
+    super.key,
     required this.latitude,
     required this.longitude,
-  }) : super(key: key);
+  });
 
   int _getSignalStrength(String provider, double lat, double lng) {
     if (lat == 0 && lng == 0) return 0;
@@ -753,10 +753,10 @@ class ImageUploadWidget extends StatefulWidget {
   final Function(List<String>) onImagesChanged;
 
   const ImageUploadWidget({
-    Key? key,
+    super.key,
     required this.images,
     required this.onImagesChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<ImageUploadWidget> createState() => _ImageUploadWidgetState();
@@ -983,12 +983,12 @@ class MultiSelectChip extends StatefulWidget {
   final String label;
 
   const MultiSelectChip({
-    Key? key,
+    super.key,
     required this.options,
     required this.selectedItems,
     required this.onSelectionChanged,
     required this.label,
-  }) : super(key: key);
+  });
 
   @override
   State<MultiSelectChip> createState() => _MultiSelectChipState();
@@ -1081,10 +1081,10 @@ class DemographyFormWidget extends StatefulWidget {
   final Function(Map<String, dynamic>) onDataChanged;
 
   const DemographyFormWidget({
-    Key? key,
+    super.key,
     required this.demographyData,
     required this.onDataChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<DemographyFormWidget> createState() => _DemographyFormWidgetState();
@@ -1381,10 +1381,10 @@ class UrgencyFormWidget extends StatefulWidget {
   final Function(Map<String, dynamic>) onDataChanged;
 
   const UrgencyFormWidget({
-    Key? key,
+    super.key,
     required this.urgencyData,
     required this.onDataChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<UrgencyFormWidget> createState() => _UrgencyFormWidgetState();
@@ -1454,10 +1454,10 @@ class CommercialForm extends StatefulWidget {
   final Function(Map<String, dynamic>) onSubmit;
 
   const CommercialForm({
-    Key? key,
+    super.key,
     required this.category,
     required this.onSubmit,
-  }) : super(key: key);
+  });
 
   @override
   State<CommercialForm> createState() => _CommercialFormState();
@@ -1919,10 +1919,10 @@ class ResidentialForm extends StatefulWidget {
   final Function(Map<String, dynamic>) onSubmit;
 
   const ResidentialForm({
-    Key? key,
+    super.key,
     required this.category,
     required this.onSubmit,
-  }) : super(key: key);
+  });
 
   @override
   State<ResidentialForm> createState() => _ResidentialFormState();
@@ -2473,10 +2473,10 @@ class LandForm extends StatefulWidget {
   final Function(Map<String, dynamic>) onSubmit;
 
   const LandForm({
-    Key? key,
+    super.key,
     required this.category,
     required this.onSubmit,
-  }) : super(key: key);
+  });
 
   @override
   State<LandForm> createState() => _LandFormState();
@@ -2945,10 +2945,10 @@ class GenericForm extends StatefulWidget {
   final Function(Map<String, dynamic>) onSubmit;
 
   const GenericForm({
-    Key? key,
+    super.key,
     required this.category,
     required this.onSubmit,
-  }) : super(key: key);
+  });
 
   @override
   State<GenericForm> createState() => _GenericFormState();

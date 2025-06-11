@@ -110,7 +110,7 @@ String formatPrice(num amount, {String symbol = '₦'}) {
 class CountdownTimer extends StatefulWidget {
   final String targetDate;
 
-  const CountdownTimer({Key? key, required this.targetDate}) : super(key: key);
+  const CountdownTimer({super.key, required this.targetDate});
 
   @override
   State<CountdownTimer> createState() => _CountdownTimerState();
@@ -204,10 +204,10 @@ class DepositOptions extends StatelessWidget {
   final Function(int, double) onDepositClick;
 
   const DepositOptions({
-    Key? key,
+    super.key,
     required this.price,
     required this.onDepositClick,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -313,11 +313,11 @@ class BidModal extends StatefulWidget {
   final double listingPrice;
 
   const BidModal({
-    Key? key,
+    super.key,
     required this.listingId,
     required this.listingTitle,
     required this.listingPrice,
-  }) : super(key: key);
+  });
 
   @override
   State<BidModal> createState() => _BidModalState();
@@ -471,10 +471,10 @@ class InspectionModal extends StatefulWidget {
   final String listingTitle;
 
   const InspectionModal({
-    Key? key,
+    super.key,
     required this.listingId,
     required this.listingTitle,
-  }) : super(key: key);
+  });
 
   @override
   State<InspectionModal> createState() => _InspectionModalState();
@@ -672,7 +672,7 @@ class _InspectionModalState extends State<InspectionModal> {
 class LayeredListingCard extends StatefulWidget {
   final Listing listing;
 
-  const LayeredListingCard({Key? key, required this.listing}) : super(key: key);
+  const LayeredListingCard({super.key, required this.listing});
 
   @override
   State<LayeredListingCard> createState() => _LayeredListingCardState();
@@ -1634,10 +1634,10 @@ class DashboardSidebar extends StatelessWidget {
   final VoidCallback onClose;
 
   const DashboardSidebar({
-    Key? key,
+    super.key,
     required this.isOpen,
     required this.onClose,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1803,7 +1803,7 @@ class DashboardSidebar extends StatelessWidget {
 
 // Main Dashboard Screen
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -1815,10 +1815,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Listing> _listings = [];
   bool _loading = true;
   String? _error;
-  String _activeTab = 'home';
+  final String _activeTab = 'home';
   bool _sidebarOpen = false;
   UserProfile? _userData;
-  Map<String, dynamic> _categoryFilters = {};
+  final Map<String, dynamic> _categoryFilters = {};
 
   @override
   void initState() {

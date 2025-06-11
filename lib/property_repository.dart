@@ -96,7 +96,7 @@ class DashboardListing {
     String state = 'Unknown';
     String country = 'Nigeria';
     
-    if (locationParts.length >= 1) {
+    if (locationParts.isNotEmpty) {
       city = locationParts[0].trim();
     }
     if (locationParts.length >= 2) {
@@ -270,13 +270,13 @@ class PropertyListing {
       
       // Add as feature string
       if (type == 'bedrooms' && int.tryParse(value) != null) {
-        featuresList.add('${value} Bedrooms');
+        featuresList.add('$value Bedrooms');
       } else if (type == 'bathrooms' && int.tryParse(value) != null) {
-        featuresList.add('${value} Bathrooms');
+        featuresList.add('$value Bathrooms');
       } else if (type == 'toilets' && int.tryParse(value) != null) {
-        featuresList.add('${value} Toilets');
+        featuresList.add('$value Toilets');
       } else if (type == 'parking_spaces' && int.tryParse(value) != null) {
-        featuresList.add('${value} Parking Spaces');
+        featuresList.add('$value Parking Spaces');
       }
     }
     
@@ -758,7 +758,7 @@ class PropertyRepository {
     String state = 'Unknown';
     String country = 'Nigeria';
     
-    if (locationParts.length >= 1) city = locationParts[0].trim();
+    if (locationParts.isNotEmpty) city = locationParts[0].trim();
     if (locationParts.length >= 2) state = locationParts[1].trim();
     if (locationParts.length >= 3) country = locationParts[2].trim();
 

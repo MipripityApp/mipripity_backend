@@ -7,9 +7,9 @@ class ForumTopicsScreen extends StatefulWidget {
   final List<Map<String, dynamic>> forumTopics;
 
   const ForumTopicsScreen({
-    Key? key,
+    super.key,
     required this.forumTopics,
-  }) : super(key: key);
+  });
 
   @override
   State<ForumTopicsScreen> createState() => _ForumTopicsScreenState();

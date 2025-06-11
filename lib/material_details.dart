@@ -4,9 +4,9 @@ class MaterialDetails extends StatefulWidget {
   final String materialId;
 
   const MaterialDetails({
-    Key? key,
+    super.key,
     required this.materialId,
-  }) : super(key: key);
+  });
 
   @override
   State<MaterialDetails> createState() => _MaterialDetailsState();

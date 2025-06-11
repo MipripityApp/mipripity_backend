@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'property_repository.dart';
 
 class ResidentialPropertiesScreen extends StatefulWidget {
-  const ResidentialPropertiesScreen({Key? key}) : super(key: key);
+  const ResidentialPropertiesScreen({super.key});
 
   @override
   State<ResidentialPropertiesScreen> createState() => _ResidentialPropertiesScreenState();

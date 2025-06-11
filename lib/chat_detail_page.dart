@@ -8,12 +8,12 @@ class ChatDetailPage extends StatefulWidget {
   final String? avatar;
 
   const ChatDetailPage({
-    Key? key,
+    super.key,
     required this.chatId,
     required this.chatType,
     required this.chatName,
     this.avatar,
-  }) : super(key: key);
+  });
 
   @override
   State<ChatDetailPage> createState() => _ChatDetailPageState();
@@ -1405,10 +1405,10 @@ class BottomNavigation extends StatelessWidget {
   final Function(String) onTabChange;
 
   const BottomNavigation({
-    Key? key,
+    super.key,
     required this.activeTab,
     required this.onTabChange,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

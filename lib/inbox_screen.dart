@@ -38,7 +38,7 @@ enum MessageType {
 }
 
 class InboxScreen extends StatefulWidget {
-  const InboxScreen({Key? key}) : super(key: key);
+  const InboxScreen({super.key});
 
   @override
   State<InboxScreen> createState() => _InboxScreenState();
@@ -447,7 +447,7 @@ class _InboxScreenState extends State<InboxScreen> with SingleTickerProviderStat
 class MessageDetailScreen extends StatefulWidget {
   final Message message;
 
-  const MessageDetailScreen({Key? key, required this.message}) : super(key: key);
+  const MessageDetailScreen({super.key, required this.message});
 
   @override
   State<MessageDetailScreen> createState() => _MessageDetailScreenState();

@@ -37,7 +37,7 @@ class LandProperty {
 }
 
 class LandPropertiesScreen extends StatefulWidget {
-  const LandPropertiesScreen({Key? key}) : super(key: key);
+  const LandPropertiesScreen({super.key});
 
   @override
   State<LandPropertiesScreen> createState() => _LandPropertiesScreenState();

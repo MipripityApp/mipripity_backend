@@ -5,9 +5,9 @@ class FilteredPropertyDetailsScreen extends StatefulWidget {
   final String propertyId;
 
   const FilteredPropertyDetailsScreen({
-    Key? key,
+    super.key,
     required this.propertyId,
-  }) : super(key: key);
+  });
 
   @override
   State<FilteredPropertyDetailsScreen> createState() => _FilteredPropertyDetailsScreenState();

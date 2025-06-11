@@ -53,7 +53,7 @@ String formatPrice(num amount, {String symbol = '₦'}) {
 }
 
 class MyListingsScreen extends StatefulWidget {
-  const MyListingsScreen({Key? key}) : super(key: key);
+  const MyListingsScreen({super.key});
 
   @override
   State<MyListingsScreen> createState() => _MyListingsScreenState();

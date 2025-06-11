@@ -75,12 +75,12 @@ class BidCard extends StatelessWidget {
   final VoidCallback onView;
 
   const BidCard({
-    Key? key,
+    super.key,
     required this.bid,
     required this.onEdit,
     required this.onCancel,
     required this.onView,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -492,11 +492,11 @@ class EditBidPopup extends StatefulWidget {
   final VoidCallback onClose;
 
   const EditBidPopup({
-    Key? key,
+    super.key,
     required this.bid,
     required this.onSubmit,
     required this.onClose,
-  }) : super(key: key);
+  });
 
   @override
   State<EditBidPopup> createState() => _EditBidPopupState();
@@ -649,11 +649,11 @@ class CancelBidPopup extends StatefulWidget {
   final VoidCallback onClose;
 
   const CancelBidPopup({
-    Key? key,
+    super.key,
     required this.bid,
     required this.onConfirm,
     required this.onClose,
-  }) : super(key: key);
+  });
 
   @override
   State<CancelBidPopup> createState() => _CancelBidPopupState();
@@ -782,7 +782,7 @@ class _CancelBidPopupState extends State<CancelBidPopup> {
 
 // Main MyBidsScreen
 class MyBidsScreen extends StatefulWidget {
-  const MyBidsScreen({Key? key}) : super(key: key);
+  const MyBidsScreen({super.key});
 
   @override
   State<MyBidsScreen> createState() => _MyBidsScreenState();

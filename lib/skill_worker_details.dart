@@ -4,9 +4,9 @@ class SkillWorkerDetails extends StatefulWidget {
   final String workerId;
 
   const SkillWorkerDetails({
-    Key? key,
+    super.key,
     required this.workerId,
-  }) : super(key: key);
+  });
 
   @override
   State<SkillWorkerDetails> createState() => _SkillWorkerDetailsState();

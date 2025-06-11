@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/user_provider.dart';
 import 'add_view_model.dart';
+import 'package:postgres/postgres.dart';
 
 // Import your screens
 import 'home_screen.dart';
@@ -47,6 +48,14 @@ void main() async {
   );
 }
 
+final connection = PostgreSQLConnection(
+  'host-from-render',
+  5432,
+  'database-name',
+  username: 'username',
+  password: 'password',
+);
+
 // Custom page transition builder with zero animation for bottom nav transitions
 class NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
   const NoAnimationPageTransitionsBuilder();
@@ -67,9 +76,9 @@ class NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
 // Custom page route with zero animation
 class NoAnimationPageRoute<T> extends MaterialPageRoute<T> {
   NoAnimationPageRoute({
-    required WidgetBuilder builder,
-    RouteSettings? settings,
-  }) : super(builder: builder, settings: settings);
+    required super.builder,
+    super.settings,
+  });
 
   @override
   Duration get transitionDuration => Duration.zero;
@@ -89,7 +98,7 @@ class NoAnimationPageRoute<T> extends MaterialPageRoute<T> {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {

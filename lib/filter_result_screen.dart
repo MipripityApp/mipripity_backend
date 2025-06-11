@@ -7,10 +7,10 @@ class FilterResultScreen extends StatefulWidget {
   final String category;
 
   const FilterResultScreen({
-    Key? key,
+    super.key,
     required this.filters,
     required this.category,
-  }) : super(key: key);
+  });
 
   @override
   State<FilterResultScreen> createState() => _FilterResultScreenState();

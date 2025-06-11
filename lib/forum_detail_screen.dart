@@ -7,9 +7,9 @@ class ForumDetailScreen extends StatefulWidget {
   final Map<String, dynamic> topic;
 
   const ForumDetailScreen({
-    Key? key,
+    super.key,
     required this.topic,
-  }) : super(key: key);
+  });
 
   @override
   State<ForumDetailScreen> createState() => _ForumDetailScreenState();

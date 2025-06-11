@@ -326,7 +326,7 @@ class _InvestInRealEstateState extends State<InvestInRealEstate> {
                   ),
                   
                   // Investment listings
-                  ...filteredInvestments.map((investment) => buildInvestmentCard(investment)).toList(),
+                  ...filteredInvestments.map((investment) => buildInvestmentCard(investment)),
                 ],
               ),
             ),

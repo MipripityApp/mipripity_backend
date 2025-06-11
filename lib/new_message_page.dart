@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'chat_detail_page.dart';
 
 class NewMessagePage extends StatefulWidget {
-  const NewMessagePage({Key? key}) : super(key: key);
+  const NewMessagePage({super.key});
 
   @override
   State<NewMessagePage> createState() => _NewMessagePageState();
@@ -936,10 +936,10 @@ class BottomNavigation extends StatelessWidget {
   final Function(String) onTabChange;
 
   const BottomNavigation({
-    Key? key,
+    super.key,
     required this.activeTab,
     required this.onTabChange,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

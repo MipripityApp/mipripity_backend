@@ -5,9 +5,9 @@ class AgentProfileScreen extends StatefulWidget {
   final String agentId;
 
   const AgentProfileScreen({
-    Key? key,
+    super.key,
     required this.agentId,
-  }) : super(key: key);
+  });
 
   @override
   State<AgentProfileScreen> createState() => _AgentProfileScreenState();

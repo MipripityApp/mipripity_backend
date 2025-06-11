@@ -3,7 +3,7 @@ import 'shared/bottom_navigation.dart';
 import 'forum_detail_screen.dart';
 
 class CreateForumScreen extends StatefulWidget {
-  const CreateForumScreen({Key? key}) : super(key: key);
+  const CreateForumScreen({super.key});
 
   @override
   State<CreateForumScreen> createState() => _CreateForumScreenState();

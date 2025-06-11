@@ -7,9 +7,9 @@ class InvestmentDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> investment;
 
   const InvestmentDetailsScreen({
-    Key? key,
+    super.key,
     required this.investment,
-  }) : super(key: key);
+  });
 
   @override
   _InvestmentDetailsScreenState createState() => _InvestmentDetailsScreenState();
