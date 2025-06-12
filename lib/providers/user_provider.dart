@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../services/firebase_auth_service.dart';
+import '../services/user_service.dart';
 
 class UserProvider with ChangeNotifier {
-  final FirebaseAuthService _authService = FirebaseAuthService();
+  final UserService _userService = UserService();
   
   Map<String, dynamic>? _user;
   bool _isLoggedIn = false;
@@ -15,31 +14,49 @@ class UserProvider with ChangeNotifier {
   bool get isLoggedIn => _isLoggedIn;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  
+  // Get user ID
+  int? get userId => _user?['id'];
+  String? get userEmail => _user?['email'];
+  String? get userFullName => _user?['firstName'] != null && _user?['lastName'] != null 
+      ? '${_user!['firstName']} ${_user!['lastName']}' 
+      : null;
 
   UserProvider() {
     _initializeAuthState();
   }
 
   // Initialize authentication state
-  void _initializeAuthState() {
-    _authService.authStateChanges.listen((User? user) async {
-      if (user != null) {
-        // User is signed in, get user data from Firestore
-        final userData = await _authService.getUserData(user.uid);
+  Future<void> _initializeAuthState() async {
+    setLoading(true);
+    
+    try {
+      // Check if user is already authenticated
+      final isAuth = await _userService.isAuthenticated();
+      
+      if (isAuth) {
+        // Get current user profile
+        final userData = await _userService.getCurrentUserProfile();
         if (userData != null) {
           _user = userData;
-          _user!['uid'] = user.uid;
-          _user!['email'] = user.email;
-          _user!['photoURL'] = user.photoURL;
           _isLoggedIn = true;
+        } else {
+          // Clear session if user data can't be retrieved
+          await _userService.clearUserSession();
+          _user = null;
+          _isLoggedIn = false;
         }
       } else {
-        // User is signed out
         _user = null;
         _isLoggedIn = false;
       }
-      notifyListeners();
-    });
+    } catch (e) {
+      print('Error initializing auth state: $e');
+      _user = null;
+      _isLoggedIn = false;
+    } finally {
+      setLoading(false);
+    }
   }
 
   // Set loading state
@@ -68,27 +85,29 @@ class UserProvider with ChangeNotifier {
     required String lastName,
     required String phoneNumber,
     String? whatsappLink,
+    String? avatarUrl,
   }) async {
     setLoading(true);
     clearError();
 
     try {
-      final result = await _authService.registerWithEmailAndPassword(
+      final result = await _userService.registerUser(
         email: email,
         password: password,
         firstName: firstName,
         lastName: lastName,
         phoneNumber: phoneNumber,
         whatsappLink: whatsappLink,
+        avatarUrl: avatarUrl,
       );
 
-      if (result != null && result['error'] == null) {
-        _user = result;
+      if (result != null && result['user'] != null) {
+        _user = result['user'];
         _isLoggedIn = true;
         notifyListeners();
         return true;
       } else {
-        setError(result?['error'] ?? 'Registration failed');
+        setError(result?['message'] ?? 'Registration failed');
         return false;
       }
     } catch (e) {
@@ -103,23 +122,25 @@ class UserProvider with ChangeNotifier {
   Future<bool> login({
     required String email,
     required String password,
+    bool rememberMe = false,
   }) async {
     setLoading(true);
     clearError();
 
     try {
-      final result = await _authService.signInWithEmailAndPassword(
+      final result = await _userService.loginUser(
         email: email,
         password: password,
+        rememberMe: rememberMe,
       );
 
-      if (result != null && result['error'] == null) {
-        _user = result;
+      if (result != null && result['user'] != null) {
+        _user = result['user'];
         _isLoggedIn = true;
         notifyListeners();
         return true;
       } else {
-        setError(result?['error'] ?? 'Login failed');
+        setError(result?['message'] ?? 'Login failed');
         return false;
       }
     } catch (e) {
@@ -130,23 +151,20 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Login with Google
+  // Login with Google (placeholder - you'll need to implement Google OAuth)
   Future<bool> loginWithGoogle() async {
     setLoading(true);
     clearError();
 
     try {
-      final result = await _authService.signInWithGoogle();
-
-      if (result != null && result['error'] == null) {
-        _user = result;
-        _isLoggedIn = true;
-        notifyListeners();
-        return true;
-      } else {
-        setError(result?['error'] ?? 'Google login failed');
-        return false;
-      }
+      // TODO: Implement Google OAuth flow
+      // This would typically involve:
+      // 1. Google Sign In to get OAuth token
+      // 2. Send token to your backend for verification
+      // 3. Backend returns user data and JWT token
+      
+      setError('Google login not yet implemented');
+      return false;
     } catch (e) {
       setError('An error occurred during Google login: ${e.toString()}');
       return false;
@@ -155,7 +173,7 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Register with Google
+  // Register with Google (placeholder)
   Future<bool> registerWithGoogle({
     String? phoneNumber,
     String? whatsappLink,
@@ -164,20 +182,9 @@ class UserProvider with ChangeNotifier {
     clearError();
 
     try {
-      final result = await _authService.signUpWithGoogle(
-        phoneNumber: phoneNumber,
-        whatsappLink: whatsappLink,
-      );
-
-      if (result != null && result['error'] == null) {
-        _user = result;
-        _isLoggedIn = true;
-        notifyListeners();
-        return true;
-      } else {
-        setError(result?['error'] ?? 'Google sign up failed');
-        return false;
-      }
+      // TODO: Implement Google OAuth registration
+      setError('Google registration not yet implemented');
+      return false;
     } catch (e) {
       setError('An error occurred during Google sign up: ${e.toString()}');
       return false;
@@ -186,20 +193,17 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Reset password
+  // Reset password (placeholder - depends on your backend implementation)
   Future<bool> resetPassword(String email) async {
     setLoading(true);
     clearError();
 
     try {
-      final result = await _authService.resetPassword(email);
-
-      if (result['error'] == null) {
-        return true;
-      } else {
-        setError(result['error']);
-        return false;
-      }
+      // TODO: Implement password reset with your backend
+      // This would typically send a reset email or SMS
+      
+      setError('Password reset not yet implemented');
+      return false;
     } catch (e) {
       setError('An error occurred: ${e.toString()}');
       return false;
@@ -210,17 +214,24 @@ class UserProvider with ChangeNotifier {
 
   // Update user data
   Future<bool> updateUserData(Map<String, dynamic> data) async {
-    if (_user == null) return false;
+    if (_user == null || userId == null) return false;
 
     setLoading(true);
     clearError();
 
     try {
-      final success = await _authService.updateUserData(_user!['uid'], data);
+      final updatedUser = await _userService.updateUserProfile(
+        userId: userId!,
+        firstName: data['firstName'],
+        lastName: data['lastName'],
+        phoneNumber: data['phoneNumber'],
+        whatsappLink: data['whatsappLink'],
+        avatarUrl: data['avatarUrl'],
+      );
       
-      if (success) {
+      if (updatedUser != null) {
         // Update local user data
-        _user = {..._user!, ...data};
+        _user = {..._user!, ...updatedUser};
         notifyListeners();
         return true;
       } else {
@@ -235,12 +246,78 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+  // Update specific user fields
+  Future<bool> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? phoneNumber,
+    String? whatsappLink,
+    String? avatarUrl,
+  }) async {
+    if (_user == null || userId == null) return false;
+
+    setLoading(true);
+    clearError();
+
+    try {
+      final updatedUser = await _userService.updateUserProfile(
+        userId: userId!,
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: phoneNumber,
+        whatsappLink: whatsappLink,
+        avatarUrl: avatarUrl,
+      );
+      
+      if (updatedUser != null) {
+        // Update local user data
+        _user = {..._user!, ...updatedUser};
+        notifyListeners();
+        return true;
+      } else {
+        setError('Failed to update profile');
+        return false;
+      }
+    } catch (e) {
+      setError('An error occurred while updating profile: ${e.toString()}');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Refresh user data
+  Future<bool> refreshUserData() async {
+    if (!_isLoggedIn) return false;
+
+    setLoading(true);
+    clearError();
+
+    try {
+      final userData = await _userService.getCurrentUserProfile();
+      
+      if (userData != null) {
+        _user = userData;
+        notifyListeners();
+        return true;
+      } else {
+        setError('Failed to refresh user data');
+        return false;
+      }
+    } catch (e) {
+      setError('An error occurred while refreshing: ${e.toString()}');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     setLoading(true);
     
     try {
-      await _authService.signOut();
+      await _userService.logoutUser();
       _user = null;
       _isLoggedIn = false;
       clearError();
@@ -250,5 +327,86 @@ class UserProvider with ChangeNotifier {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Check authentication status
+  Future<bool> checkAuthStatus() async {
+    try {
+      return await _userService.isAuthenticated();
+    } catch (e) {
+      print('Error checking auth status: $e');
+      return false;
+    }
+  }
+
+  // Get or create default user (for demo purposes)
+  Future<bool> initializeDefaultUser() async {
+    setLoading(true);
+    clearError();
+
+    try {
+      final userId = await _userService.getOrCreateDefaultUser();
+      
+      if (userId > 0) {
+        final userData = await _userService.getUserById(userId);
+        
+        if (userData != null) {
+          _user = userData;
+          _isLoggedIn = true;
+          notifyListeners();
+          return true;
+        }
+      }
+      
+      setError('Failed to initialize default user');
+      return false;
+    } catch (e) {
+      setError('An error occurred while initializing: ${e.toString()}');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Helper method to check if user has complete profile
+  bool get hasCompleteProfile {
+    if (_user == null) return false;
+    
+    return _user!['firstName'] != null &&
+           _user!['lastName'] != null &&
+           _user!['phoneNumber'] != null &&
+           _user!['email'] != null;
+  }
+
+  // Helper method to get user initials
+  String get userInitials {
+    if (_user == null) return '';
+    
+    final firstName = _user!['firstName'] ?? '';
+    final lastName = _user!['lastName'] ?? '';
+    
+    String initials = '';
+    if (firstName.isNotEmpty) initials += firstName[0].toUpperCase();
+    if (lastName.isNotEmpty) initials += lastName[0].toUpperCase();
+    
+    return initials.isNotEmpty ? initials : 'U';
+  }
+
+  // Helper method to get display name
+  String get displayName {
+    if (_user == null) return 'User';
+    
+    final firstName = _user!['firstName'] ?? '';
+    final lastName = _user!['lastName'] ?? '';
+    
+    if (firstName.isNotEmpty && lastName.isNotEmpty) {
+      return '$firstName $lastName';
+    } else if (firstName.isNotEmpty) {
+      return firstName;
+    } else if (_user!['email'] != null) {
+      return _user!['email'].toString().split('@').first;
+    }
+    
+    return 'User';
   }
 }

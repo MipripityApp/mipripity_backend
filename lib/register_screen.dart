@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/user_provider.dart';
+import 'api/user_api.dart'; // Import the UserApi that uses the render backend
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -110,6 +111,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     final whatsappLink = 'https://wa.me/$phoneNumber';
     
     final userProvider = Provider.of<UserProvider>(context, listen: false);
+    
+    // This registration process uses the render backend API at 'https://mipripity-api-1.onrender.com'
+    // through UserProvider and UserService
     
     final success = await userProvider.register(
       email: _emailController.text.trim(),

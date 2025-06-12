@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/user_provider.dart';
 import 'add_view_model.dart';
-import 'package:postgres/postgres.dart';
+import 'package:http/http.dart' as http;
 
 // Import your screens
 import 'home_screen.dart';
@@ -48,13 +48,19 @@ void main() async {
   );
 }
 
-final connection = PostgreSQLConnection(
-  'host-from-render',
-  5432,
-  'database-name',
-  username: 'username',
-  password: 'password',
-);
+Future<void> fetchUsers() async {
+  try {
+    final response = await http.get(Uri.parse('https://mipripity-api-1.onrender.com/users'));
+
+    if (response.statusCode == 200) {
+      print('Users: ${response.body}');
+    } else {
+      print('Failed to load users. Status code: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error fetching users: $e');
+  }
+}
 
 // Custom page transition builder with zero animation for bottom nav transitions
 class NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {

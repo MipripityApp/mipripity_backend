@@ -1,7 +1,9 @@
-import '../database_helper.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../api/property_api.dart';
 
 class DatabaseService {
-  final DatabaseHelper _databaseHelper = DatabaseHelper();
+  static const String baseUrl = 'https://mipripity-api-1.onrender.com';
   
   // Submit complete form data
   Future<bool> submitCompleteListing({
@@ -33,49 +35,168 @@ class DatabaseService {
       // Add user ID to form data
       formData['userId'] = userId;
       
-      // Submit form data to SQLite database
-      final formId = await _databaseHelper.submitForm(formData);
+      // Submit form data to backend API
+      final response = await http.post(
+        Uri.parse('$baseUrl/listings'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(formData),
+      );
       
-      return formId > 0;
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print('Exception submitting complete listing: $e');
       return false;
     }
   }
   
-  // Get category ID by name (simplified implementation - just returns 1 for now)
+  // Get category ID by name
   Future<int?> getCategoryIdByName(String categoryName) async {
-    return 1; // Just return a default value since we're not using categories with IDs
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/categories?name=$categoryName'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List && data.isNotEmpty) {
+          return data.first['id'];
+        }
+      }
+      return 1; // Default fallback
+    } catch (e) {
+      print('Error getting category ID: $e');
+      return 1;
+    }
   }
   
   // Get user's listings
   Future<List<Map<String, dynamic>>> getUserListings(int userId) async {
-    return await _databaseHelper.getSubmissionsByUser(userId);
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/$userId/listings'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      }
+      return [];
+    } catch (e) {
+      print('Error getting user listings: $e');
+      return [];
+    }
   }
   
   // Get listing details
   Future<Map<String, dynamic>?> getListingDetails(int listingId) async {
-    return await _databaseHelper.getSubmissionWithDetails(listingId);
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/listings/$listingId'),
+      );
+      
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(response.body));
+      }
+      return null;
+    } catch (e) {
+      print('Error getting listing details: $e');
+      return null;
+    }
   }
   
   // Update listing status
   Future<bool> updateListingStatus(int listingId, String status) async {
-    return await _databaseHelper.updateSubmissionStatus(listingId, status);
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/listings/$listingId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'status': status}),
+      );
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error updating listing status: $e');
+      return false;
+    }
   }
   
   // Delete listing
   Future<bool> deleteListing(int listingId) async {
-    return await _databaseHelper.deleteSubmission(listingId);
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/listings/$listingId'),
+      );
+      
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print('Error deleting listing: $e');
+      return false;
+    }
   }
   
   // Get residential properties for listing
   Future<List<Map<String, dynamic>>> getResidentialProperties() async {
-    return await _databaseHelper.getResidentialProperties();
+    try {
+      final properties = await PropertyApi.getResidentialProperties();
+      return List<Map<String, dynamic>>.from(properties);
+    } catch (e) {
+      print('Error getting residential properties: $e');
+      return [];
+    }
   }
   
   // Get commercial properties for listing
   Future<List<Map<String, dynamic>>> getCommercialProperties() async {
-    return await _databaseHelper.getCommercialProperties();
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/properties/commercial'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      }
+      return [];
+    } catch (e) {
+      print('Error getting commercial properties: $e');
+      return [];
+    }
+  }
+
+  // Get land properties
+  Future<List<Map<String, dynamic>>> getLandProperties() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/properties/land'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      }
+      return [];
+    } catch (e) {
+      print('Error getting land properties: $e');
+      return [];
+    }
+  }
+
+  // Get material properties
+  Future<List<Map<String, dynamic>>> getMaterialProperties() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/properties/materials'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      }
+      return [];
+    } catch (e) {
+      print('Error getting material properties: $e');
+      return [];
+    }
   }
   
   // Helper methods to extract city and state from location
@@ -98,14 +219,30 @@ class DatabaseService {
     required String phoneNumber,
     String? whatsappLink,
   }) async {
-    return await _databaseHelper.registerUser(
-      email: email,
-      password: password,
-      firstName: firstName,
-      lastName: lastName,
-      phoneNumber: phoneNumber,
-      whatsappLink: whatsappLink,
-    );
+    try {
+      final userData = {
+        'email': email,
+        'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
+        'phoneNumber': phoneNumber,
+        'whatsappLink': whatsappLink,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(userData),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return Map<String, dynamic>.from(jsonDecode(response.body));
+      }
+      return null;
+    } catch (e) {
+      print('Error registering user: $e');
+      return null;
+    }
   }
   
   // Login a user
@@ -114,16 +251,57 @@ class DatabaseService {
     required String password,
     bool rememberMe = false,
   }) async {
-    return await _databaseHelper.loginUser(
-      email: email,
-      password: password,
-      rememberMe: rememberMe,
-    );
+    try {
+      final loginData = {
+        'email': email,
+        'password': password,
+        'rememberMe': rememberMe,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(loginData),
+      );
+
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(response.body));
+      }
+      return null;
+    } catch (e) {
+      print('Error logging in user: $e');
+      return null;
+    }
   }
 
   // Get or create default user
   Future<int> getOrCreateDefaultUser() async {
-    return await _databaseHelper.getOrCreateDefaultUser();
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/default'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['id'] ?? 1;
+      }
+      
+      // If no default user exists, create one
+      final createResponse = await http.post(
+        Uri.parse('$baseUrl/users/default'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (createResponse.statusCode == 200 || createResponse.statusCode == 201) {
+        final data = jsonDecode(createResponse.body);
+        return data['id'] ?? 1;
+      }
+      
+      return 1; // Fallback
+    } catch (e) {
+      print('Error getting/creating default user: $e');
+      return 1;
+    }
   }
 
   // Add property creation methods
@@ -133,8 +311,8 @@ class DatabaseService {
   }) async {
     try {
       propertyData['user_id'] = userId;
-      final propertyId = await _databaseHelper.insertResidentialProperty(propertyData);
-      return propertyId > 0;
+      propertyData['type'] = 'residential';
+      return await PropertyApi.createResidentialProperty(propertyData);
     } catch (e) {
       print('Error creating residential property: $e');
       return false;
@@ -147,8 +325,15 @@ class DatabaseService {
   }) async {
     try {
       propertyData['user_id'] = userId;
-      final propertyId = await _databaseHelper.insertCommercialProperty(propertyData);
-      return propertyId > 0;
+      propertyData['type'] = 'commercial';
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/properties'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(propertyData),
+      );
+      
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print('Error creating commercial property: $e');
       return false;
@@ -161,8 +346,15 @@ class DatabaseService {
   }) async {
     try {
       propertyData['user_id'] = userId;
-      final propertyId = await _databaseHelper.insertLandProperty(propertyData);
-      return propertyId > 0;
+      propertyData['type'] = 'land';
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/properties'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(propertyData),
+      );
+      
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print('Error creating land property: $e');
       return false;
@@ -175,8 +367,15 @@ class DatabaseService {
   }) async {
     try {
       propertyData['user_id'] = userId;
-      final propertyId = await _databaseHelper.insertMaterialProperty(propertyData);
-      return propertyId > 0;
+      propertyData['type'] = 'material';
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/properties'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(propertyData),
+      );
+      
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print('Error creating material property: $e');
       return false;
@@ -186,15 +385,26 @@ class DatabaseService {
   // Get featured properties by category
   Future<List<Map<String, dynamic>>> getFeaturedPropertiesByCategory(String category, {required int limit}) async {
     try {
-      // First try to get featured properties
-      List<Map<String, dynamic>> featuredProperties = await _databaseHelper.getFeaturedPropertiesByCategory(category, limit: limit);
+      final response = await http.get(
+        Uri.parse('$baseUrl/properties/featured?category=$category&limit=$limit'),
+      );
       
-      // If no featured properties, get recent properties
-      if (featuredProperties.isEmpty) {
-        featuredProperties = await _databaseHelper.getRecentPropertiesByCategory(category, limit: limit);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
       }
       
-      return featuredProperties;
+      // If no featured properties, get recent properties
+      final recentResponse = await http.get(
+        Uri.parse('$baseUrl/properties/recent?category=$category&limit=$limit'),
+      );
+      
+      if (recentResponse.statusCode == 200) {
+        final data = jsonDecode(recentResponse.body);
+        return List<Map<String, dynamic>>.from(data);
+      }
+      
+      return [];
     } catch (e) {
       print('Error getting featured properties for $category: $e');
       return [];
@@ -204,10 +414,34 @@ class DatabaseService {
   // Get all featured properties
   Future<List<Map<String, dynamic>>> getAllFeaturedProperties({int limit = 20}) async {
     try {
-      return await _databaseHelper.getAllFeaturedProperties(limit: limit);
+      final response = await http.get(
+        Uri.parse('$baseUrl/properties/featured?limit=$limit'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      }
+      return [];
     } catch (e) {
       print('Error getting all featured properties: $e');
       return [];
     }
+  }
+
+  // Additional utility methods for API calls
+  Future<Map<String, String>> _getAuthHeaders([String? token]) async {
+    final headers = {'Content-Type': 'application/json'};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
+  // Handle API errors
+  void _handleApiError(http.Response response, String operation) {
+    print('API Error during $operation:');
+    print('Status Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
   }
 }
