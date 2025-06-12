@@ -4,17 +4,20 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:postgres/postgres.dart';
+import 'package:mipripity_api/database_helper.dart';
 
 void main() async {
-  final db = PostgreSQLConnection(
-    Platform.environment['DB_HOST'] ?? 'dpg-d107so63jp1c739n6pg0-a',
-    5432,
-    Platform.environment['DB_NAME'] ?? 'MipripityApp',
-    username: Platform.environment['DB_USER'] ?? 'mipripityapp_user',
-    password: Platform.environment['DB_PASSWORD'] ?? 'FuotafUoe0sWr4IYjuSkXeZ281mMOA53',
-  );
+  // Use the DatabaseHelper to connect to the database with configuration from pubspec.yaml
+  PostgreSQLConnection db;
 
-  await db.open();
+  try {
+    db = await DatabaseHelper.connect();
+    print('Connected to database successfully using configuration from pubspec.yaml');
+  } catch (e) {
+    print('Failed to connect to the database: $e');
+    print('Please ensure the database credentials are correct in pubspec.yaml or environment variables');
+    exit(1);
+  }
 
   final router = Router();
 

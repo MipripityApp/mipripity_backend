@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'api_config.dart';
 
 class UserApi {
-  static const String baseUrl = 'https://mipripity-api-1.onrender.com';
+  // Use the central API configuration
+  static String get baseUrl => ApiConfig.getBaseUrl();
 
   static Future<List<dynamic>> getUsers() async {
     final response = await http.get(Uri.parse('$baseUrl/users'));
