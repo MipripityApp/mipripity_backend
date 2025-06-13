@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:mipripity/api/user_api.dart';
 import '../services/user_service.dart';
 
-class UserProvider with ChangeNotifier {
+class UserProvider extends ChangeNotifier {
   final UserService _userService = UserService();
   
   Map<String, dynamic>? _user;
@@ -84,37 +85,30 @@ class UserProvider with ChangeNotifier {
     required String firstName,
     required String lastName,
     required String phoneNumber,
-    String? whatsappLink,
-    String? avatarUrl,
+    required String whatsappLink,
   }) async {
     setLoading(true);
-    clearError();
+    setError(null);
+    notifyListeners();
 
-    try {
-      final result = await _userService.registerUser(
-        email: email,
-        password: password,
-        firstName: firstName,
-        lastName: lastName,
-        phoneNumber: phoneNumber,
-        whatsappLink: whatsappLink,
-        avatarUrl: avatarUrl,
-      );
+    final result = await UserApi.registerUser(
+      email: email,
+      password: password,
+      firstName: firstName,
+      lastName: lastName,
+      phoneNumber: phoneNumber,
+      whatsappLink: whatsappLink,
+    );
 
-      if (result != null && result['user'] != null) {
-        _user = result['user'];
-        _isLoggedIn = true;
-        notifyListeners();
-        return true;
-      } else {
-        setError(result?['message'] ?? 'Registration failed');
-        return false;
-      }
-    } catch (e) {
-      setError('An error occurred during registration: ${e.toString()}');
+    setLoading(false);
+    if (result['success']) {
+      // Optionally store user info from result['body']
+      _isLoggedIn = true;
+      notifyListeners();
+      return true;
+    } else {
+      setError(result['body']['error'] ?? 'Registration failed');
       return false;
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -122,32 +116,27 @@ class UserProvider with ChangeNotifier {
   Future<bool> login({
     required String email,
     required String password,
-    bool rememberMe = false,
+    bool rememberMe = true,
   }) async {
     setLoading(true);
-    clearError();
+    setError(null);
+    notifyListeners();
 
-    try {
-      final result = await _userService.loginUser(
-        email: email,
-        password: password,
-        rememberMe: rememberMe,
-      );
+    final result = await UserApi.loginUser(
+      email: email,
+      password: password,
+    );
 
-      if (result != null && result['user'] != null) {
-        _user = result['user'];
-        _isLoggedIn = true;
-        notifyListeners();
-        return true;
-      } else {
-        setError(result?['message'] ?? 'Login failed');
-        return false;
-      }
-    } catch (e) {
-      setError('An error occurred during login: ${e.toString()}');
+    setLoading(false);
+    if (result['success']) {
+      // Optionally store user info/token from result['body']
+      _isLoggedIn = true;
+      notifyListeners();
+      return true;
+    } else {
+      setError(result['body']['error'] ?? 'Login failed');
+      notifyListeners();
       return false;
-    } finally {
-      setLoading(false);
     }
   }
 
