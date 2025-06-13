@@ -51,4 +51,73 @@ class UserApi {
       'statusCode': response.statusCode,
     };
   }
+
+  // Google login
+  static Future<Map<String, dynamic>> loginWithGoogle({
+    String? idToken,
+    String? accessToken,
+    String? email,
+    String? displayName,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/google-login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'id_token': idToken,
+        'access_token': accessToken,
+        'email': email,
+        'display_name': displayName,
+      }),
+    );
+    return {
+      'success': response.statusCode == 200,
+      'body': jsonDecode(response.body),
+      'statusCode': response.statusCode,
+    };
+  }
+
+  // Google register
+  static Future<Map<String, dynamic>> registerWithGoogle({
+    String? idToken,
+    String? accessToken,
+    String? email,
+    String? displayName,
+    String? phoneNumber,
+    String? whatsappLink,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/google-register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'id_token': idToken,
+        'access_token': accessToken,
+        'email': email,
+        'display_name': displayName,
+        'phone_number': phoneNumber,
+        'whatsapp_link': whatsappLink,
+      }),
+    );
+    return {
+      'success': response.statusCode == 200,
+      'body': jsonDecode(response.body),
+      'statusCode': response.statusCode,
+    };
+  }
+
+  // Get user profile
+  static Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/users/$userId'));
+    if (response.statusCode == 200) {
+      return {
+        'success': true,
+        'body': jsonDecode(response.body),
+      };
+    } else {
+      return {
+        'success': false,
+        'body': jsonDecode(response.body),
+        'statusCode': response.statusCode,
+      };
+    }
+  }
 }

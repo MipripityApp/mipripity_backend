@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:mipripity/api/user_api.dart';
 import '../services/user_service.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class UserProvider extends ChangeNotifier {
   final UserService _userService = UserService();
@@ -146,23 +147,40 @@ class UserProvider extends ChangeNotifier {
     clearError();
 
     try {
-      // TODO: Implement Google OAuth flow
-      // This would typically involve:
-      // 1. Google Sign In to get OAuth token
-      // 2. Send token to your backend for verification
-      // 3. Backend returns user data and JWT token
-      
-      setError('Google login not yet implemented');
-      return false;
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setError('Google sign in cancelled');
+        setLoading(false);
+        return false;
+      }
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Send token or user info to your backend for verification/registration
+      final result = await UserApi.loginWithGoogle(
+        idToken: googleAuth.idToken,
+        accessToken: googleAuth.accessToken,
+        email: googleUser.email,
+        displayName: googleUser.displayName,
+      );
+
+      setLoading(false);
+      if (result['success']) {
+        _isLoggedIn = true;
+        _user = result['body']['user'];
+        notifyListeners();
+        return true;
+      } else {
+        setError(result['body']['error'] ?? 'Google login failed');
+        return false;
+      }
     } catch (e) {
       setError('An error occurred during Google login: ${e.toString()}');
-      return false;
-    } finally {
       setLoading(false);
+      return false;
     }
   }
 
-  // Register with Google (placeholder)
+  // Register with Google (calls loginWithGoogle for most cases)
   Future<bool> registerWithGoogle({
     String? phoneNumber,
     String? whatsappLink,
@@ -171,14 +189,38 @@ class UserProvider extends ChangeNotifier {
     clearError();
 
     try {
-      // TODO: Implement Google OAuth registration
-      setError('Google registration not yet implemented');
-      return false;
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setError('Google sign in cancelled');
+        setLoading(false);
+        return false;
+      }
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Send token or user info to your backend for registration
+      final result = await UserApi.registerWithGoogle(
+        idToken: googleAuth.idToken,
+        accessToken: googleAuth.accessToken,
+        email: googleUser.email,
+        displayName: googleUser.displayName,
+        phoneNumber: phoneNumber,
+        whatsappLink: whatsappLink,
+      );
+
+      setLoading(false);
+      if (result['success']) {
+        _isLoggedIn = true;
+        _user = result['body']['user'];
+        notifyListeners();
+        return true;
+      } else {
+        setError(result['body']['error'] ?? 'Google registration failed');
+        return false;
+      }
     } catch (e) {
       setError('An error occurred during Google sign up: ${e.toString()}');
-      return false;
-    } finally {
       setLoading(false);
+      return false;
     }
   }
 
