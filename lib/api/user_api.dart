@@ -1,11 +1,10 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserApi {
-  static const String baseUrl = 'https://mipripity-api-1.onrender.com';
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Register user
-  static Future<Map<String, dynamic>> registerUser({
+  // Register user with Firebase Auth
+  Future<Map<String, dynamic>> registerUser({
     required String email,
     required String password,
     required String firstName,
@@ -13,70 +12,88 @@ class UserApi {
     required String phoneNumber,
     required String whatsappLink,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/users'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-        'first_name': firstName,
-        'last_name': lastName,
-        'phone_number': phoneNumber,
-        'whatsapp_link': whatsappLink,
-      }),
-    );
-    return {
-      'success': response.statusCode == 200 || response.statusCode == 201,
-      'body': jsonDecode(response.body),
-      'statusCode': response.statusCode,
-    };
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      // Optionally, update display name or store extra info in Firestore
+      await userCredential.user?.updateDisplayName('$firstName $lastName');
+      // You can also store phoneNumber and whatsappLink in Firestore if needed
+
+      return {
+        'success': true,
+        'body': {
+          'uid': userCredential.user?.uid,
+          'email': userCredential.user?.email,
+          'displayName': userCredential.user?.displayName,
+        },
+        'statusCode': 200,
+      };
+    } on FirebaseAuthException catch (e) {
+      return {
+        'success': false,
+        'body': {'error': e.message ?? 'Registration failed'},
+        'statusCode': 400,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'body': {'error': e.toString()},
+        'statusCode': 400,
+      };
+    }
   }
 
-  // Login user
-  static Future<Map<String, dynamic>> loginUser({
+  // Login user with Firebase Auth
+  Future<Map<String, dynamic>> loginUser({
     required String email,
     required String password,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
-    );
-    return {
-      'success': response.statusCode == 200,
-      'body': jsonDecode(response.body),
-      'statusCode': response.statusCode,
-    };
+    try {
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return {
+        'success': true,
+        'body': {
+          'uid': userCredential.user?.uid,
+          'email': userCredential.user?.email,
+          'displayName': userCredential.user?.displayName,
+        },
+        'statusCode': 200,
+      };
+    } on FirebaseAuthException catch (e) {
+      return {
+        'success': false,
+        'body': {'error': e.message ?? 'Login failed'},
+        'statusCode': 400,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'body': {'error': e.toString()},
+        'statusCode': 400,
+      };
+    }
   }
 
-  // Google login
+  // Google login (stub, implement with google_sign_in if needed)
   static Future<Map<String, dynamic>> loginWithGoogle({
     String? idToken,
     String? accessToken,
     String? email,
     String? displayName,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/google-login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'id_token': idToken,
-        'access_token': accessToken,
-        'email': email,
-        'display_name': displayName,
-      }),
-    );
     return {
-      'success': response.statusCode == 200,
-      'body': jsonDecode(response.body),
-      'statusCode': response.statusCode,
+      'success': false,
+      'body': {'error': 'Google login not implemented in this example.'},
+      'statusCode': 501,
     };
   }
 
-  // Google register
+  // Google register (stub, implement with google_sign_in if needed)
   static Future<Map<String, dynamic>> registerWithGoogle({
     String? idToken,
     String? accessToken,
@@ -85,38 +102,59 @@ class UserApi {
     String? phoneNumber,
     String? whatsappLink,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/google-register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'id_token': idToken,
-        'access_token': accessToken,
-        'email': email,
-        'display_name': displayName,
-        'phone_number': phoneNumber,
-        'whatsapp_link': whatsappLink,
-      }),
-    );
     return {
-      'success': response.statusCode == 200,
-      'body': jsonDecode(response.body),
-      'statusCode': response.statusCode,
+      'success': false,
+      'body': {'error': 'Google register not implemented in this example.'},
+      'statusCode': 501,
     };
   }
 
-  // Get user profile
-  static Future<Map<String, dynamic>> getUserProfile(String userId) async {
-    final response = await http.get(Uri.parse('$baseUrl/users/$userId'));
-    if (response.statusCode == 200) {
-      return {
-        'success': true,
-        'body': jsonDecode(response.body),
-      };
-    } else {
+  // Get user profile (from Firebase Auth)
+  Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null && user.uid == userId) {
+        return {
+          'success': true,
+          'body': {
+            'uid': user.uid,
+            'email': user.email,
+            'displayName': user.displayName,
+            'phoneNumber': user.phoneNumber,
+          },
+          'statusCode': 200,
+        };
+      } else {
+        return {
+          'success': false,
+          'body': {'error': 'User not found or not logged in.'},
+          'statusCode': 404,
+        };
+      }
+    } catch (e) {
       return {
         'success': false,
-        'body': jsonDecode(response.body),
-        'statusCode': response.statusCode,
+        'body': {'error': e.toString()},
+        'statusCode': 400,
+      };
+    }
+  }
+
+  // Find user by email (from Firebase Auth)
+  Future<Map<String, dynamic>> findUserByEmail(String email) async {
+    try {
+      // Firebase Auth does not support searching users by email client-side for security.
+      // This should be implemented server-side if needed.
+      return {
+        'success': false,
+        'body': {'error': 'Finding user by email is not supported client-side in Firebase Auth.'},
+        'statusCode': 501,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'body': {'error': e.toString()},
+        'statusCode': 400,
       };
     }
   }

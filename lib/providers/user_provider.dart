@@ -1,82 +1,177 @@
-import 'package:flutter/foundation.dart';
-import 'package:mipripity/api/user_api.dart';
-import '../services/user_service.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/user.dart' as app_models;
+import '../services/firebase_auth_service.dart';
 
 class UserProvider extends ChangeNotifier {
-  final UserService _userService = UserService();
-  
-  Map<String, dynamic>? _user;
-  bool _isLoggedIn = false;
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  User? _firebaseUser;
+  app_models.User? _appUser;
   bool _isLoading = false;
   String? _error;
 
-  // Getters
-  Map<String, dynamic>? get user => _user;
-  bool get isLoggedIn => _isLoggedIn;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  
-  // Get user ID
-  int? get userId => _user?['id'];
-  String? get userEmail => _user?['email'];
-  String? get userFullName => _user?['firstName'] != null && _user?['lastName'] != null 
-      ? '${_user!['firstName']} ${_user!['lastName']}' 
-      : null;
-
   UserProvider() {
-    _initializeAuthState();
+    // Listen to Firebase auth state changes and update user accordingly
+    _authService.authStateChange.listen((user) {
+      _firebaseUser = user;
+      if (_firebaseUser != null && _appUser == null) {
+        _createAppUserFromFirebase();
+      }
+      notifyListeners();
+    });
+    // Initialize user on provider creation
+    _firebaseUser = _authService.currentUser;
+    _loadUserFromPrefs();
   }
 
-  // Initialize authentication state
-  Future<void> _initializeAuthState() async {
-    setLoading(true);
-    
+  // Load user data from shared preferences
+  Future<void> _loadUserFromPrefs() async {
     try {
-      // Check if user is already authenticated
-      final isAuth = await _userService.isAuthenticated();
-      
-      if (isAuth) {
-        // Get current user profile
-        final userData = await _userService.getCurrentUserProfile();
-        if (userData != null) {
-          _user = userData;
-          _isLoggedIn = true;
-        } else {
-          // Clear session if user data can't be retrieved
-          await _userService.clearUserSession();
-          _user = null;
-          _isLoggedIn = false;
-        }
-      } else {
-        _user = null;
-        _isLoggedIn = false;
+      final prefs = await SharedPreferences.getInstance();
+      final userData = prefs.getString('user_data');
+      if (userData != null) {
+        final Map<String, dynamic> userMap = jsonDecode(userData);
+        _appUser = app_models.User.fromJson(userMap);
+        notifyListeners();
+      } else if (_firebaseUser != null) {
+        await _createAppUserFromFirebase();
       }
     } catch (e) {
-      print('Error initializing auth state: $e');
-      _user = null;
-      _isLoggedIn = false;
-    } finally {
-      setLoading(false);
+      print('Error loading user from preferences: $e');
     }
   }
 
-  // Set loading state
-  void setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
+  // Save user data to shared preferences
+  Future<void> _saveUserToPrefs(app_models.User user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_data', jsonEncode(user.toJson()));
+    } catch (e) {
+      print('Error saving user to preferences: $e');
+    }
   }
 
-  // Set error message
-  void setError(String? error) {
-    _error = error;
-    notifyListeners();
+  // Clear user data from shared preferences
+  Future<void> _clearUserFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_data');
+    } catch (e) {
+      print('Error clearing user from preferences: $e');
+    }
   }
 
-  // Clear error message
-  void clearError() {
+  // Create app user from Firebase user data
+  Future<void> _createAppUserFromFirebase() async {
+    if (_firebaseUser == null) return;
+
+    try {
+      final userEmail = _firebaseUser!.email;
+      if (userEmail == null) return;
+
+      // Firebase displayName may contain both first and last name
+      final displayName = _firebaseUser!.displayName ?? '';
+      final names = displayName.split(' ');
+      final firstName = names.isNotEmpty ? names.first : '';
+      final lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
+      final phoneNumber = _firebaseUser!.phoneNumber ?? '';
+      // If you store whatsappLink elsewhere, fetch it here (e.g., from Firestore)
+
+      // Use the Firebase user's unique ID as the app user ID (hashCode fallback for int)
+      final userId = _firebaseUser!.uid.hashCode.abs();
+
+      _appUser = app_models.User(
+        id: userId,
+        email: userEmail,
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: phoneNumber,
+        whatsappLink: '', // Set if you store it elsewhere
+      );
+
+      await _saveUserToPrefs(_appUser!);
+      notifyListeners();
+    } catch (e) {
+      print('Error creating app user from Firebase metadata: $e');
+    }
+  }
+
+  // Getters
+  User? get user => _firebaseUser;
+  app_models.User? get appUser => _appUser;
+  bool get isLoggedIn => _appUser != null || _firebaseUser != null;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  // Login with email and password
+  Future<bool> login(String email, String password) async {
+    _isLoading = true;
     _error = null;
     notifyListeners();
+
+    try {
+      final userCredential = await _authService.loginUser(
+        email: email,
+        password: password,
+      );
+      _firebaseUser = userCredential?.user;
+      await _createAppUserFromFirebase();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+        _error = 'Invalid email or password. Please try again.';
+      } else if (e.code == 'network-request-failed') {
+        _error = 'Network error. Please check your internet connection and try again.';
+      } else {
+        _error = e.message ?? 'Authentication failed. Please try again.';
+      }
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Authentication failed. Please try again.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Login with Google
+  Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final userCredential = await _authService.signInWithGoogle();
+      
+      // User canceled the sign-in
+      if (userCredential == null) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+      
+      _firebaseUser = userCredential.user;
+      await _createAppUserFromFirebase();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _error = e.message ?? 'Google sign-in failed. Please try again.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Google sign-in failed. Please try again.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   // Register with email and password
@@ -88,356 +183,83 @@ class UserProvider extends ChangeNotifier {
     required String phoneNumber,
     required String whatsappLink,
   }) async {
-    setLoading(true);
-    setError(null);
+    _isLoading = true;
+    _error = null;
     notifyListeners();
 
-    final result = await UserApi.registerUser(
-      email: email,
-      password: password,
-      firstName: firstName,
-      lastName: lastName,
-      phoneNumber: phoneNumber,
-      whatsappLink: whatsappLink,
-    );
+    try {
+      final userCredential = await _authService.registerUser(
+        email: email,
+        password: password,
+      );
+      _firebaseUser = userCredential?.user;
 
-    setLoading(false);
-    if (result['success']) {
-      // Optionally store user info from result['body']
-      _isLoggedIn = true;
+      // Update display name
+      await _authService.updateUserProfile(
+        displayName: '$firstName $lastName',
+      );
+      
+      // Optionally, update phone number and whatsappLink in Firestore
+
+      if (_firebaseUser != null) {
+        final userId = _firebaseUser!.uid.hashCode.abs();
+        _appUser = app_models.User(
+          id: userId,
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          phoneNumber: phoneNumber,
+          whatsappLink: whatsappLink,
+        );
+        await _saveUserToPrefs(_appUser!);
+      }
+
+      _isLoading = false;
       notifyListeners();
       return true;
-    } else {
-      setError(result['body']['error'] ?? 'Registration failed');
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        _error = 'This email is already registered. Please try signing in instead.';
+      } else if (e.code == 'network-request-failed') {
+        _error = 'Network error. Please check your internet connection and try again.';
+      } else if (e.code == 'weak-password') {
+        _error = 'Password is too weak. Please use a stronger password.';
+      } else {
+        _error = e.message ?? 'Registration failed. Please try again.';
+      }
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Registration failed. Please try again.';
+      _isLoading = false;
+      notifyListeners();
       return false;
     }
   }
 
-  // Login with email and password
-  Future<bool> login({
-    required String email,
-    required String password,
-    bool rememberMe = true,
-  }) async {
-    setLoading(true);
-    setError(null);
+  Future<void> logout() async {
+    _appUser = null;
+    await _clearUserFromPrefs();
+
+    try {
+      await _authService.logout();
+      _firebaseUser = null;
+    } catch (e) {
+      print('Firebase sign-out error: $e');
+    }
     notifyListeners();
-
-    final result = await UserApi.loginUser(
-      email: email,
-      password: password,
-    );
-
-    setLoading(false);
-    if (result['success']) {
-      // Optionally store user info/token from result['body']
-      _isLoggedIn = true;
-      notifyListeners();
-      return true;
-    } else {
-      setError(result['body']['error'] ?? 'Login failed');
-      notifyListeners();
-      return false;
-    }
   }
 
-  // Login with Google (placeholder - you'll need to implement Google OAuth)
-  Future<bool> loginWithGoogle() async {
-    setLoading(true);
-    clearError();
-
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        setError('Google sign in cancelled');
-        setLoading(false);
-        return false;
-      }
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      // Send token or user info to your backend for verification/registration
-      final result = await UserApi.loginWithGoogle(
-        idToken: googleAuth.idToken,
-        accessToken: googleAuth.accessToken,
-        email: googleUser.email,
-        displayName: googleUser.displayName,
-      );
-
-      setLoading(false);
-      if (result['success']) {
-        _isLoggedIn = true;
-        _user = result['body']['user'];
-        notifyListeners();
-        return true;
-      } else {
-        setError(result['body']['error'] ?? 'Google login failed');
-        return false;
-      }
-    } catch (e) {
-      setError('An error occurred during Google login: ${e.toString()}');
-      setLoading(false);
-      return false;
-    }
+  app_models.User? getCurrentUser() {
+    return _appUser;
   }
 
-  // Register with Google (calls loginWithGoogle for most cases)
-  Future<bool> registerWithGoogle({
-    String? phoneNumber,
-    String? whatsappLink,
-  }) async {
-    setLoading(true);
-    clearError();
-
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        setError('Google sign in cancelled');
-        setLoading(false);
-        return false;
-      }
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      // Send token or user info to your backend for registration
-      final result = await UserApi.registerWithGoogle(
-        idToken: googleAuth.idToken,
-        accessToken: googleAuth.accessToken,
-        email: googleUser.email,
-        displayName: googleUser.displayName,
-        phoneNumber: phoneNumber,
-        whatsappLink: whatsappLink,
-      );
-
-      setLoading(false);
-      if (result['success']) {
-        _isLoggedIn = true;
-        _user = result['body']['user'];
-        notifyListeners();
-        return true;
-      } else {
-        setError(result['body']['error'] ?? 'Google registration failed');
-        return false;
-      }
-    } catch (e) {
-      setError('An error occurred during Google sign up: ${e.toString()}');
-      setLoading(false);
-      return false;
-    }
+  bool isAuthenticated() {
+    return _appUser != null || _authService.isAuthenticated;
   }
 
-  // Reset password (placeholder - depends on your backend implementation)
-  Future<bool> resetPassword(String email) async {
-    setLoading(true);
-    clearError();
-
-    try {
-      // TODO: Implement password reset with your backend
-      // This would typically send a reset email or SMS
-      
-      setError('Password reset not yet implemented');
-      return false;
-    } catch (e) {
-      setError('An error occurred: ${e.toString()}');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Update user data
-  Future<bool> updateUserData(Map<String, dynamic> data) async {
-    if (_user == null || userId == null) return false;
-
-    setLoading(true);
-    clearError();
-
-    try {
-      final updatedUser = await _userService.updateUserProfile(
-        userId: userId!,
-        firstName: data['firstName'],
-        lastName: data['lastName'],
-        phoneNumber: data['phoneNumber'],
-        whatsappLink: data['whatsappLink'],
-        avatarUrl: data['avatarUrl'],
-      );
-      
-      if (updatedUser != null) {
-        // Update local user data
-        _user = {..._user!, ...updatedUser};
-        notifyListeners();
-        return true;
-      } else {
-        setError('Failed to update user data');
-        return false;
-      }
-    } catch (e) {
-      setError('An error occurred while updating: ${e.toString()}');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Update specific user fields
-  Future<bool> updateProfile({
-    String? firstName,
-    String? lastName,
-    String? phoneNumber,
-    String? whatsappLink,
-    String? avatarUrl,
-  }) async {
-    if (_user == null || userId == null) return false;
-
-    setLoading(true);
-    clearError();
-
-    try {
-      final updatedUser = await _userService.updateUserProfile(
-        userId: userId!,
-        firstName: firstName,
-        lastName: lastName,
-        phoneNumber: phoneNumber,
-        whatsappLink: whatsappLink,
-        avatarUrl: avatarUrl,
-      );
-      
-      if (updatedUser != null) {
-        // Update local user data
-        _user = {..._user!, ...updatedUser};
-        notifyListeners();
-        return true;
-      } else {
-        setError('Failed to update profile');
-        return false;
-      }
-    } catch (e) {
-      setError('An error occurred while updating profile: ${e.toString()}');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Refresh user data
-  Future<bool> refreshUserData() async {
-    if (!_isLoggedIn) return false;
-
-    setLoading(true);
-    clearError();
-
-    try {
-      final userData = await _userService.getCurrentUserProfile();
-      
-      if (userData != null) {
-        _user = userData;
-        notifyListeners();
-        return true;
-      } else {
-        setError('Failed to refresh user data');
-        return false;
-      }
-    } catch (e) {
-      setError('An error occurred while refreshing: ${e.toString()}');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Sign out
-  Future<void> signOut() async {
-    setLoading(true);
-    
-    try {
-      await _userService.logoutUser();
-      _user = null;
-      _isLoggedIn = false;
-      clearError();
-      notifyListeners();
-    } catch (e) {
-      setError('Error signing out: ${e.toString()}');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Check authentication status
-  Future<bool> checkAuthStatus() async {
-    try {
-      return await _userService.isAuthenticated();
-    } catch (e) {
-      print('Error checking auth status: $e');
-      return false;
-    }
-  }
-
-  // Get or create default user (for demo purposes)
-  Future<bool> initializeDefaultUser() async {
-    setLoading(true);
-    clearError();
-
-    try {
-      final userId = await _userService.getOrCreateDefaultUser();
-      
-      if (userId > 0) {
-        final userData = await _userService.getUserById(userId);
-        
-        if (userData != null) {
-          _user = userData;
-          _isLoggedIn = true;
-          notifyListeners();
-          return true;
-        }
-      }
-      
-      setError('Failed to initialize default user');
-      return false;
-    } catch (e) {
-      setError('An error occurred while initializing: ${e.toString()}');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Helper method to check if user has complete profile
-  bool get hasCompleteProfile {
-    if (_user == null) return false;
-    
-    return _user!['firstName'] != null &&
-           _user!['lastName'] != null &&
-           _user!['phoneNumber'] != null &&
-           _user!['email'] != null;
-  }
-
-  // Helper method to get user initials
-  String get userInitials {
-    if (_user == null) return '';
-    
-    final firstName = _user!['firstName'] ?? '';
-    final lastName = _user!['lastName'] ?? '';
-    
-    String initials = '';
-    if (firstName.isNotEmpty) initials += firstName[0].toUpperCase();
-    if (lastName.isNotEmpty) initials += lastName[0].toUpperCase();
-    
-    return initials.isNotEmpty ? initials : 'U';
-  }
-
-  // Helper method to get display name
-  String get displayName {
-    if (_user == null) return 'User';
-    
-    final firstName = _user!['firstName'] ?? '';
-    final lastName = _user!['lastName'] ?? '';
-    
-    if (firstName.isNotEmpty && lastName.isNotEmpty) {
-      return '$firstName $lastName';
-    } else if (firstName.isNotEmpty) {
-      return firstName;
-    } else if (_user!['email'] != null) {
-      return _user!['email'].toString().split('@').first;
-    }
-    
-    return 'User';
+  Stream<User?> get authStateChange {
+    return _authService.authStateChange;
   }
 }

@@ -1956,7 +1956,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             urgencyPeriod: DateTime.now()
                 .add(const Duration(days: 10))
                 .toIso8601String(),
-            listingImage: 'assets/images/chair1.jpg',
+            listingImage: 'assets/images/material1.jpg',
             condition: 'New',
             quantity: '5 Available',
             listerEmail: 'furniture@example.com',

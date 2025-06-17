@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider;
 import 'providers/user_provider.dart';
-// Import the UserApi that uses the render backend
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -17,7 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  
+
   bool _showPassword = false;
   bool _showConfirmPassword = false;
   bool _agreeToTerms = false;
@@ -28,18 +27,22 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
+    _setupAnimation();
+  }
+
+  void _setupAnimation() {
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
+
     _fadeInAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.easeOut,
       ),
     );
-    
-    // Start the animation after a short delay
+
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
         _animationController.forward();
@@ -59,62 +62,15 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     super.dispose();
   }
 
-  void _handleRegister() async {
-    // Comprehensive validation
-    // Check for empty fields
-    if (_firstNameController.text.isEmpty ||
-        _lastNameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty ||
-        _phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All fields are required')),
-      );
-      return;
-    }
-    
-    // Password matching validation
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
-      return;
-    }
+  Future<void> _handleRegister() async {
+    if (!_validateFields()) return;
 
-    // Terms agreement validation
-    if (!_agreeToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please agree to the Terms and Conditions')),
-      );
-      return;
-    }
-    
-    // Email format validation
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(_emailController.text)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address')),
-      );
-      return;
-    }
-    
-    // Password complexity validation
-    if (_passwordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters long')),
-      );
-      return;
-    }
+    final userProvider = provider.Provider.of<UserProvider>(context, listen: false);
 
-    // Generate WhatsApp link from phone number
+    // Generate WhatsApp link
     final phoneNumber = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
     final whatsappLink = 'https://wa.me/$phoneNumber';
-    
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    
-    // This registration process uses the render backend API at 'https://mipripity-api-1.onrender.com'
-    // through UserProvider and UserService
-    
+
     final success = await userProvider.register(
       email: _emailController.text.trim(),
       password: _passwordController.text,
@@ -123,32 +79,96 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       phoneNumber: _phoneController.text.trim(),
       whatsappLink: whatsappLink,
     );
-    
-    if (mounted) {
-      if (success) {
-        print('Registration successful, navigating to dashboard');
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(userProvider.error ?? 'Registration failed')),
-        );
-      }
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registration successful! Please verify your email.')),
+      );
+      Navigator.pushReplacementNamed(context, '/login');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userProvider.error ?? 'Registration failed')),
+      );
     }
   }
 
-  void _handleGoogleRegister() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
+  bool _validateFields() {
+    if (_firstNameController.text.isEmpty ||
+        _lastNameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _phoneController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All fields are required'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Passwords do not match'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    if (!_agreeToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please agree to the Terms and Conditions'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid email address'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 6 characters long'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  // Handle Google sign-in/register
+  Future<void> _handleGoogleRegister() async {
+    final userProvider = provider.Provider.of<UserProvider>(context, listen: false);
     
     final success = await userProvider.loginWithGoogle();
+    
+    if (!mounted) return;
 
-    if (mounted) {
-      if (success) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(userProvider.error ?? 'Google registration failed')),
-        );
-      }
+    if (success) {
+      // Google sign-in/registration successful, navigate to dashboard
+      Navigator.pushReplacementNamed(context, '/dashboard');
+    } else {
+      // Google sign-in/registration failed, show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userProvider.error ?? 'Google sign-in failed')),
+      );
     }
   }
 
@@ -160,7 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: Consumer<UserProvider>(
+        child: provider.Consumer<UserProvider>(
           builder: (context, userProvider, child) {
             return Row(
               children: [
@@ -190,7 +210,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                               ),
                             ),
                           ),
-                          
                           // Gradient overlay at bottom
                           Positioned(
                             bottom: 0,
@@ -207,7 +226,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                               ),
                             ),
                           ),
-                          
                           // Decorative elements
                           Positioned(
                             top: 80,
@@ -237,7 +255,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       ),
                     ),
                   ),
-                
                 // Right side - Form
                 Expanded(
                   child: Container(
@@ -276,9 +293,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                             ),
                           ),
                         ),
-                        
                         const SizedBox(height: 16),
-                        
                         // Form content with animation
                         Expanded(
                           child: SingleChildScrollView(
@@ -312,7 +327,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ),
                                       ),
                                       const SizedBox(height: 32),
-                                      
                                       // Error message if any
                                       if (userProvider.error != null) ...[
                                         Container(
@@ -337,7 +351,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ),
                                         const SizedBox(height: 24),
                                       ],
-                                      
                                       // Name fields row
                                       Row(
                                         children: [
@@ -450,7 +463,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ],
                                       ),
                                       const SizedBox(height: 20),
-                                      
                                       // Email field
                                       const Text(
                                         'Email Address',
@@ -502,7 +514,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ),
                                       ),
                                       const SizedBox(height: 20),
-                                      
                                       // Phone field
                                       const Text(
                                         'Phone Number',
@@ -554,7 +565,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ),
                                       ),
                                       const SizedBox(height: 20),
-                                      
                                       // Password field
                                       const Text(
                                         'Password',
@@ -620,7 +630,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ),
                                       ),
                                       const SizedBox(height: 20),
-                                      
                                       // Confirm Password field
                                       const Text(
                                         'Confirm Password',
@@ -686,7 +695,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ),
                                       ),
                                       const SizedBox(height: 20),
-                                      
                                       // Terms and conditions checkbox
                                       Row(
                                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -741,7 +749,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ],
                                       ),
                                       const SizedBox(height: 16),
-                                      
                                       // Newsletter subscription checkbox
                                       Row(
                                         children: [
@@ -774,7 +781,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ],
                                       ),
                                       const SizedBox(height: 24),
-                                      
                                       // Register button
                                       SizedBox(
                                         width: double.infinity,
@@ -818,7 +824,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ),
                                       ),
                                       const SizedBox(height: 32),
-                                      
                                       // Sign in link
                                       Center(
                                         child: RichText(
@@ -850,7 +855,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ),
                                       ),
                                       const SizedBox(height: 32),
-                                      
                                       // Or continue with divider
                                       Row(
                                         children: [
@@ -879,7 +883,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                                         ],
                                       ),
                                       const SizedBox(height: 24),
-                                      
                                       // Google sign-up button
                                       SizedBox(
                                         width: double.infinity,

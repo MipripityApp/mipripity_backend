@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class CommercialProperty {
   final String id;
@@ -32,6 +34,51 @@ class CommercialProperty {
     this.parkingSpaces,
     this.yearBuilt,
   });
+
+  factory CommercialProperty.fromJson(Map<String, dynamic> json) {
+    // Map backend type to UI type
+    String backendType = (json['type'] ?? '').toString().toLowerCase();
+    String mappedType;
+    switch (backendType) {
+      case 'office':
+      case 'retail':
+      case 'warehouse':
+      case 'industrial':
+        mappedType = backendType;
+        break;
+      case 'commercial':
+        // Default to 'office' or 'commercial' for now
+        mappedType = 'office';
+        break;
+      default:
+        mappedType = 'office';
+    }
+
+    return CommercialProperty(
+      id: json['property_id'] ?? json['id'].toString(),
+      title: json['title'] ?? '',
+      price: double.tryParse(json['price'].toString()) ?? 0,
+      location: json['location'] ?? '',
+      imageUrl: (json['images'] != null && (json['images'] as List).isNotEmpty)
+          ? json['images'][0]
+          : 'https://via.placeholder.com/400x200.png?text=No+Image',
+      propertyType: mappedType,
+      area: double.tryParse(json['area']?.toString() ?? '') ?? 0,
+      description: json['description'] ?? '',
+      features: (json['features'] != null)
+          ? List<String>.from(json['features'])
+          : [],
+      isFeatured: json['category'] == 'premium' || json['is_featured'] == true,
+      status: json['status']?.toString() ?? 'for_sale',
+      floors: json['floors'] is int
+          ? json['floors']
+          : int.tryParse(json['floors']?.toString() ?? ''),
+      parkingSpaces: json['parkingSpaces'] is int
+          ? json['parkingSpaces']
+          : int.tryParse(json['parkingSpaces']?.toString() ?? ''),
+      yearBuilt: json['year_built']?.toString(),
+    );
+  }
 }
 
 class CommercialPropertiesScreen extends StatefulWidget {
@@ -57,123 +104,46 @@ class _CommercialPropertiesScreenState extends State<CommercialPropertiesScreen>
   }
 
   Future<void> fetchCommercialProperties() async {
-    setState(() {
-      isLoading = true;
-      error = null;
-    });
+  setState(() {
+    isLoading = true;
+    error = null;
+  });
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    try {
-      final commercialData = [
-        CommercialProperty(
-          id: '1',
-          title: 'Premium Office Space',
-          price: 45000000,
-          location: 'Victoria Island, Lagos',
-          imageUrl: 'assets/images/commercial1.jpg',
-          propertyType: 'office',
-          area: 250.0,
-          description: 'Modern office space with stunning views and premium finishes in the heart of Victoria Island.',
-          features: ['24/7 Security', 'Elevator', 'Air Conditioning', 'Generator', 'Reception Area'],
-          isFeatured: true,
-          status: 'for_sale',
-          floors: 3,
-          parkingSpaces: 20,
-          yearBuilt: '2020',
-        ),
-        CommercialProperty(
-          id: '2',
-          title: 'Retail Shop in Mall',
-          price: 35000000,
-          location: 'Ikeja, Lagos',
-          imageUrl: 'assets/images/commercial2.jpg',
-          propertyType: 'retail',
-          area: 150.0,
-          description: 'Prime retail space in busy shopping mall with high foot traffic.',
-          features: ['High Foot Traffic', 'Mall Security', 'Parking Available', 'Storage Space'],
-          isFeatured: true,
-          status: 'for_sale',
-          floors: 1,
-          parkingSpaces: 50,
-          yearBuilt: '2018',
-        ),
-        CommercialProperty(
-          id: '3',
-          title: 'Large Warehouse Facility',
-          price: 85000000,
-          location: 'Apapa, Lagos',
-          imageUrl: 'assets/images/commercial3.jpg',
-          propertyType: 'warehouse',
-          area: 1500.0,
-          description: 'Spacious warehouse with loading docks and easy access to major highways.',
-          features: ['Loading Docks', 'High Ceiling', 'Security Fence', 'Office Space', 'Truck Access'],
-          isFeatured: true,
-          status: 'for_sale',
-          floors: 1,
-          parkingSpaces: 30,
-          yearBuilt: '2019',
-        ),
-        CommercialProperty(
-          id: '4',
-          title: 'Corporate Office Building',
-          price: 120000000,
-          location: 'Ikoyi, Lagos',
-          imageUrl: 'assets/images/commercial4.jpg',
-          propertyType: 'office',
-          area: 800.0,
-          description: 'Entire office building suitable for corporate headquarters with modern amenities.',
-          features: ['Conference Rooms', 'Executive Offices', 'Cafeteria', 'Gym', 'Rooftop Terrace'],
-          status: 'for_sale',
-          floors: 6,
-          parkingSpaces: 80,
-          yearBuilt: '2021',
-        ),
-        CommercialProperty(
-          id: '5',
-          title: 'Industrial Manufacturing Plant',
-          price: 200000000,
-          location: 'Ogun State',
-          imageUrl: 'assets/images/commercial5.jpg',
-          propertyType: 'industrial',
-          area: 2500.0,
-          description: 'Complete manufacturing facility with machinery and power infrastructure.',
-          features: ['Heavy Duty Power', 'Machinery Included', 'Raw Material Storage', 'Quality Control Lab'],
-          status: 'for_sale',
-          floors: 2,
-          parkingSpaces: 100,
-          yearBuilt: '2017',
-        ),
-        CommercialProperty(
-          id: '6',
-          title: 'Restaurant Space for Rent',
-          price: 5000000, // Annual rent
-          location: 'Lekki, Lagos',
-          imageUrl: 'assets/images/commercial6.jpg',
-          propertyType: 'retail',
-          area: 200.0,
-          description: 'Fully equipped restaurant space in prime location with outdoor seating area.',
-          features: ['Kitchen Equipment', 'Outdoor Seating', 'Liquor License', 'Valet Parking'],
-          status: 'for_rent',
-          floors: 1,
-          parkingSpaces: 25,
-          yearBuilt: '2020',
-        ),
-      ];
+  try {
+    final response = await http.get(
+      Uri.parse('https://mipripity-api-1.onrender.com/properties/commercial'),
+    );
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      List<dynamic> data;
+      if (decoded is List) {
+        data = decoded;
+      } else if (decoded is Map) {
+        data = [decoded];
+      } else {
+        data = [];
+      }
+      final List<CommercialProperty> loadedProperties =
+          data.map((json) => CommercialProperty.fromJson(json)).toList();
 
       setState(() {
-        properties = commercialData;
-        filteredProperties = commercialData;
+        properties = loadedProperties;
+        filteredProperties = loadedProperties;
         isLoading = false;
       });
-    } catch (e) {
+    } else {
       setState(() {
-        error = e.toString();
+        error = 'Failed to load properties. Status code: ${response.statusCode}';
         isLoading = false;
       });
     }
+  } catch (e) {
+    setState(() {
+      error = 'Error loading properties: $e';
+      isLoading = false;
+    });
   }
+}
 
   void filterProperties() {
     List<CommercialProperty> filtered = properties;
@@ -199,6 +169,7 @@ class _CommercialPropertiesScreenState extends State<CommercialPropertiesScreen>
 
     setState(() {
       filteredProperties = filtered;
+      isLoading = false;
     });
   }
 
@@ -467,11 +438,22 @@ class _CommercialPropertiesScreenState extends State<CommercialPropertiesScreen>
                   child: Container(
                     height: 200,
                     width: double.infinity,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage(property.imageUrl),
-                        fit: BoxFit.cover,
-                      ),
+                    color: Colors.grey[300],
+                    child: Image.network(
+                      property.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[300],
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

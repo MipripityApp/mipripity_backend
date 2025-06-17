@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../api/property_api.dart';
 
+
 class DatabaseService {
   static const String baseUrl = 'https://mipripity-api-1.onrender.com';
   
@@ -210,69 +211,8 @@ class DatabaseService {
     return parts.length > 1 ? parts.last.trim() : '';
   }
   
-  // Register a new user
-  Future<Map<String, dynamic>?> registerUser({
-    required String email,
-    required String password,
-    required String firstName,
-    required String lastName,
-    required String phoneNumber,
-    String? whatsappLink,
-  }) async {
-    try {
-      final userData = {
-        'email': email,
-        'password': password,
-        'firstName': firstName,
-        'lastName': lastName,
-        'phoneNumber': phoneNumber,
-        'whatsappLink': whatsappLink,
-      };
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(userData),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return Map<String, dynamic>.from(jsonDecode(response.body));
-      }
-      return null;
-    } catch (e) {
-      print('Error registering user: $e');
-      return null;
-    }
-  }
-  
-  // Login a user
-  Future<Map<String, dynamic>?> loginUser({
-    required String email,
-    required String password,
-    bool rememberMe = false,
-  }) async {
-    try {
-      final loginData = {
-        'email': email,
-        'password': password,
-        'rememberMe': rememberMe,
-      };
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(loginData),
-      );
-
-      if (response.statusCode == 200) {
-        return Map<String, dynamic>.from(jsonDecode(response.body));
-      }
-      return null;
-    } catch (e) {
-      print('Error logging in user: $e');
-      return null;
-    }
-  }
+  // NOTE: Authentication is now handled by Supabase
+  // The custom authentication endpoints have been removed
 
   // Get or create default user
   Future<int> getOrCreateDefaultUser() async {

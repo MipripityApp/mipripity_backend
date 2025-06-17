@@ -1,16 +1,15 @@
+import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'filter_form.dart';
-
+import 'api/property_api.dart'; // Add this import
 // First, add imports for all the property screens at the top of the file
 import 'residential_properties_screen.dart';
 import 'commercial_properties_screen.dart';
 import 'land_properties_screen.dart';
 import 'material_properties_screen.dart';
-
-// Import property repository for SQLite database access
-import 'services/database_service.dart';
-import 'database_helper.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 // Define our property model (keep for backward compatibility)
 class PropertyListing {
@@ -63,105 +62,120 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  @override
-  void initState() {
-    super.initState();
-    
-    // Initialize animation controller
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-    
-    // Fetch properties
-    fetchProperties();
+@override
+void initState() {
+  super.initState();
+
+  // Initialize animation controller
+  _animationController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  );
+
+  _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ),
+  );
+
+  // Fetch properties on init
+  fetchProperties();
+}
+
+// Helper method to fetch properties by category
+Future<List<PropertyListing>> _fetchCategoryProperties(String category) async {
+  try {
+    final properties = await PropertyApi.getPropertiesByCategory(category);
+    List<PropertyListing> propertyList = [];
+
+    for (final property in properties) {
+      try {
+        String imageUrl = _getDefaultImageForCategory(category);
+        
+        if (property['images'] != null) {
+          var images = property['images'];
+          
+          if (images is String) {
+            try {
+              List<dynamic> imageList = jsonDecode(images);
+              if (imageList.isNotEmpty) {
+                String firstImage = imageList[0].toString();
+                if (firstImage.startsWith('http')) {
+                  imageUrl = firstImage;
+                }
+              }
+            } catch (e) {
+              if (images.toString().startsWith('http')) {
+                imageUrl = images.toString();
+              }
+            }
+          } else if (images is List && images.isNotEmpty) {
+            String firstImage = images[0].toString();
+            if (firstImage.startsWith('http')) {
+              imageUrl = firstImage;
+            }
+          }
+        }
+
+        // Ensure the URL is properly formatted
+        if (imageUrl.startsWith('http')) {
+          imageUrl = Uri.encodeFull(imageUrl.trim());
+        }
+
+        propertyList.add(PropertyListing(
+          id: property['id'].toString(),
+          title: property['title'] ?? 'Untitled Property',
+          price: _parsePrice(property['price']),
+          location: property['location'] ?? 'Unknown',
+          imageUrl: imageUrl,
+          bedrooms: property['bedrooms'],
+          bathrooms: property['bathrooms'],
+          area: property['area'] is String ? double.tryParse(property['area']) : property['area'],
+          category: category,
+        ));
+      } catch (e) {
+        print('Error creating PropertyListing from property: $e');
+      }
+    }
+
+    return propertyList;
+  } catch (e) {
+    print('Error fetching $category properties: $e');
+    return [];
   }
+}
+Future<void> fetchProperties() async {
+  setState(() {
+    isLoading = true;
+    error = null;
+  });
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
+  try {
+    // Fetch properties from backend API by category
+    final residentialData = await _fetchCategoryProperties('residential');
+    final commercialData = await _fetchCategoryProperties('commercial');
+    final landData = await _fetchCategoryProperties('land');
+    final materialData = await _fetchCategoryProperties('material');
 
-  // Property repository instance
-  final DatabaseService _databaseService = DatabaseService();
-
-  // Fetch properties from the database
-  Future<void> fetchProperties() async {
     setState(() {
-      isLoading = true;
-      error = null;
+      residentialProperties = residentialData;
+      commercialProperties = commercialData;
+      landProperties = landData;
+      materialProperties = materialData;
+      isLoading = false;
     });
 
-    try {
-      // Check if database is ready
-      final dbHelper = DatabaseHelper();
-      await dbHelper.database; // This will initialize the database if needed
-      
-      // Fetch properties from database by category
-      final residentialData = await _fetchCategoryProperties('residential');
-      final commercialData = await _fetchCategoryProperties('commercial');
-      final landData = await _fetchCategoryProperties('land');
-      final materialData = await _fetchCategoryProperties('material');
-
-      setState(() {
-        residentialProperties = residentialData;
-        commercialProperties = commercialData;
-        landProperties = landData;
-        materialProperties = materialData;
-        isLoading = false;
-      });
-      
-      // Start animation after data is loaded
-      _animationController.forward();
-    } catch (e) {
-      print('Error in fetchProperties: $e');
-      setState(() {
-        error = 'Failed to load properties. Please check your database connection.';
-        isLoading = false;
-      });
-    }
+    // Start animation after data is loaded
+    _animationController.forward();
+  } catch (e) {
+    print('Error in fetchProperties: $e');
+    setState(() {
+      error = 'Failed to load properties. Please check your database connection.';
+      isLoading = false;
+    });
   }
-
-  // Helper method to fetch properties by category
-  Future<List<PropertyListing>> _fetchCategoryProperties(String category) async {
-    try {
-      // Get featured properties from database service
-      final properties = await _databaseService.getFeaturedPropertiesByCategory(category, limit: 6);
-      
-      List<PropertyListing> propertyList = [];
-      
-      for (final property in properties) {
-        try {
-          propertyList.add(PropertyListing(
-            id: property['id'].toString(),
-            title: property['title'] ?? 'Untitled Property',
-            price: _parsePrice(property['price']),
-            location: property['location'] ?? 'Unknown',
-            imageUrl: property['imageUrl'] ?? property['image_url'] ?? _getDefaultImageForCategory(category),
-            bedrooms: property['bedrooms'],
-            bathrooms: property['bathrooms'],
-            area: property['area'] is String ? double.tryParse(property['area']) : property['area'],
-            category: category,
-          ));
-        } catch (e) {
-          print('Error creating PropertyListing from property: $e');
-        }
-      }
-      
-      return propertyList;
-    } catch (e) {
-      print('Error fetching $category properties: $e');
-      return [];
-    }
-  }
+}
 
   // Get default image based on property category
   String _getDefaultImageForCategory(String category) {
@@ -225,13 +239,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     });
   }
 
-  // Format price to local currency
-  String formatPrice(double price) {
-    return '₦${price.toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        )}';
-  }
+  // Format price to local currency (Naira) with Unicode for global support
+String formatPrice(double price) {
+  return '\u20A6${price.toStringAsFixed(0).replaceAllMapped(
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (Match m) => '${m[1]},',
+  )}';
+}
 
   // Build property cards
   Widget buildPropertyCards(List<PropertyListing> properties, String category) {
@@ -422,21 +436,59 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     Stack(
                       children: [
                         Hero(
-                          tag: 'property-${property.id}',
-                          child: Container(
-                            height: 140,
-                            decoration: BoxDecoration(
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(16),
-                                topRight: Radius.circular(16),
-                              ),
-                              image: DecorationImage(
-                                image: AssetImage(property.imageUrl),
-                                fit: BoxFit.cover,
-                              ),
+                        tag: 'property-${property.id}',
+                        child: Container(
+                          height: 140,
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
                             ),
                           ),
+                          child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                  child: property.imageUrl.startsWith('http')
+                                      ? CachedNetworkImage(
+                                          imageUrl: property.imageUrl,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          height: 140,
+                                          fadeInDuration: const Duration(milliseconds: 200),
+                                          fadeOutDuration: const Duration(milliseconds: 200),
+                                          placeholder: (context, url) => Container(
+                                            color: Colors.grey[100],
+                                            child: const Center(
+                                              child: CircularProgressIndicator(
+                                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF39322)),
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                          ),
+                                          errorWidget: (context, url, error) {
+                                            print('Error loading image: $error for URL: $url');
+                                            return Image.asset(
+                                              _getDefaultImageForCategory(property.category ?? 'residential'),
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: 140,
+                                            );
+                                          },
+                                          cacheManager: DefaultCacheManager(),
+                                          maxHeightDiskCache: 1500,
+                                          memCacheHeight: 1500,
+                                          httpHeaders: const {
+                                            'Accept': 'image/*',
+                                          },
+                                        )
+                                      : Image.asset(
+                                          _getDefaultImageForCategory(property.category ?? 'residential'),
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          height: 140,
+                                        ),
+                                ),
                         ),
+                      ),
                         Positioned(
                           top: 12,
                           right: 12,

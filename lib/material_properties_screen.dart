@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class MaterialProperty {
   final String id;
@@ -32,6 +34,29 @@ class MaterialProperty {
     this.brand,
     this.warranty,
   });
+
+  factory MaterialProperty.fromJson(Map<String, dynamic> json) {
+    return MaterialProperty(
+      id: json['property_id'] ?? json['id'].toString(),
+      title: json['title'] ?? '',
+      price: double.tryParse(json['price'].toString()) ?? 0,
+      location: json['location'] ?? '',
+      imageUrl: (json['images'] != null && (json['images'] as List).isNotEmpty)
+          ? json['images'][0]
+          : 'https://via.placeholder.com/400x200.png?text=No+Image',
+      materialType: json['type'] ?? 'building',
+      quantity: json['quantity']?.toString(),
+      description: json['description'] ?? '',
+      features: (json['features'] != null)
+          ? List<String>.from(json['features'])
+          : [],
+      isFeatured: json['category'] == 'premium' || json['is_featured'] == true,
+      status: json['status'] ?? 'available',
+      condition: json['condition'],
+      brand: json['brand'],
+      warranty: json['warranty'],
+    );
+  }
 }
 
 class MaterialPropertiesScreen extends StatefulWidget {
@@ -62,112 +87,29 @@ class _MaterialPropertiesScreenState extends State<MaterialPropertiesScreen> {
       error = null;
     });
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
     try {
-      final materialData = [
-        MaterialProperty(
-          id: '1',
-          title: 'Premium Cement',
-          price: 150000,
-          location: 'Nationwide Delivery',
-          imageUrl: 'assets/images/material1.jpg',
-          materialType: 'building',
-          quantity: '100 bags',
-          description: 'High-quality cement suitable for all construction needs with fast setting time.',
-          features: ['Fast Setting', 'Weather Resistant', 'High Strength', 'Bulk Discount Available'],
-          isFeatured: true,
-          status: 'available',
-          condition: 'new',
-          brand: 'Dangote',
-          warranty: '30 days',
-        ),
-        MaterialProperty(
-          id: '2',
-          title: 'Sand (30 tons)',
-          price: 85000,
-          location: 'Lagos Mainland',
-          imageUrl: 'assets/images/material2.jpg',
-          materialType: 'building',
-          quantity: '30 tons',
-          description: 'Clean, washed sand suitable for construction and landscaping projects.',
-          features: ['Washed', 'Screened', 'Free Delivery', 'Quality Tested'],
-          isFeatured: true,
-          status: 'available',
-          condition: 'new',
-        ),
-        MaterialProperty(
-          id: '3',
-          title: 'Roofing Sheets',
-          price: 250000,
-          location: 'Lagos State',
-          imageUrl: 'assets/images/material3.jpg',
-          materialType: 'building',
-          quantity: '50 sheets',
-          description: 'Durable aluminum roofing sheets with long-lasting finish and weather resistance.',
-          features: ['Corrosion Resistant', 'UV Protected', 'Easy Installation', '15 Year Warranty'],
-          isFeatured: true,
-          status: 'available',
-          condition: 'new',
-          brand: 'Kingspan',
-          warranty: '15 years',
-        ),
-        MaterialProperty(
-          id: '4',
-          title: 'Luxury Sofa Set',
-          price: 350000,
-          location: 'Lekki, Lagos',
-          imageUrl: 'assets/images/material4.jpg',
-          materialType: 'furniture',
-          quantity: '1 set (3+1+1)',
-          description: 'Elegant leather sofa set with premium craftsmanship and comfort.',
-          features: ['Genuine Leather', 'Hardwood Frame', 'Comfortable Cushions', 'Modern Design'],
-          status: 'available',
-          condition: 'new',
-          brand: 'Ashley',
-          warranty: '2 years',
-        ),
-        MaterialProperty(
-          id: '5',
-          title: 'Bathroom Fixtures Set',
-          price: 120000,
-          location: 'Ikeja, Lagos',
-          imageUrl: 'assets/images/material5.jpg',
-          materialType: 'fixtures',
-          quantity: 'Complete set',
-          description: 'Complete bathroom fixtures set including faucets, shower, and accessories.',
-          features: ['Stainless Steel', 'Water Saving', 'Easy Installation', 'Modern Design'],
-          status: 'available',
-          condition: 'new',
-          brand: 'Grohe',
-          warranty: '5 years',
-        ),
-        MaterialProperty(
-          id: '6',
-          title: 'Air Conditioner (1.5HP)',
-          price: 180000,
-          location: 'Victoria Island, Lagos',
-          imageUrl: 'assets/images/material6.jpg',
-          materialType: 'appliances',
-          quantity: '2 units',
-          description: 'Energy-efficient split air conditioner with cooling and heating functions.',
-          features: ['Energy Efficient', 'Low Noise', 'Remote Control', 'Timer Function'],
-          status: 'available',
-          condition: 'new',
-          brand: 'LG',
-          warranty: '1 year',
-        ),
-      ];
+      final response = await http.get(
+        Uri.parse('https://mipripity-api-1.onrender.com/properties/material'),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final List<MaterialProperty> loadedMaterials =
+            data.map((json) => MaterialProperty.fromJson(json)).toList();
 
-      setState(() {
-        materials = materialData;
-        filteredMaterials = materialData;
-        isLoading = false;
-      });
+        setState(() {
+          materials = loadedMaterials;
+          filteredMaterials = loadedMaterials;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          error = 'Failed to load materials. Status code: ${response.statusCode}';
+          isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
-        error = e.toString();
+        error = 'Error loading materials: $e';
         isLoading = false;
       });
     }
@@ -305,6 +247,8 @@ class _MaterialPropertiesScreenState extends State<MaterialPropertiesScreen> {
                         _buildConditionFilterChip('New', 'new', selectedConditionFilter),
                         const SizedBox(width: 8),
                         _buildConditionFilterChip('Used', 'used', selectedConditionFilter),
+                        const SizedBox(width: 8),
+                        _buildConditionFilterChip('Refurbished', 'refurbished', selectedConditionFilter),
                       ],
                     ),
                   ),
@@ -393,6 +337,11 @@ class _MaterialPropertiesScreenState extends State<MaterialPropertiesScreen> {
               style: TextStyle(color: Colors.grey[600], fontSize: 16),
             ),
             const SizedBox(height: 8),
+            Text(
+              error!,
+              style: TextStyle(color: Colors.red[400], fontSize: 14),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: fetchMaterialProperties,
               child: const Text('Retry'),
@@ -468,7 +417,7 @@ class _MaterialPropertiesScreenState extends State<MaterialPropertiesScreen> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage(material.imageUrl),
+                        image: NetworkImage(material.imageUrl),
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -716,7 +665,7 @@ class _MaterialPropertiesScreenState extends State<MaterialPropertiesScreen> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
+                            child: Image.network(
                               material.imageUrl,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {

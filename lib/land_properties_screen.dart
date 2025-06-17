@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:mipripity/home_screen.dart';
 
 class LandProperty {
   final String id;
@@ -34,6 +37,32 @@ class LandProperty {
     this.surveyed,
     this.zoning,
   });
+
+  factory LandProperty.fromJson(Map<String, dynamic> json) {
+    return LandProperty(
+      id: json['property_id'] ?? json['id'].toString(),
+      title: json['title'] ?? '',
+      price: double.tryParse(json['price'].toString()) ?? 0,
+      location: json['location'] ?? '',
+      imageUrl: (json['images'] != null && (json['images'] as List).isNotEmpty)
+          ? json['images'][0]
+          : 'https://via.placeholder.com/400x200.png?text=No+Image',
+      landType: json['type'] ?? 'residential',
+      area: json['area'] is double
+          ? json['area']
+          : double.tryParse(json['area']?.toString() ?? '') ?? 0,
+      areaUnit: json['area_unit'] ?? 'sqm',
+      description: json['description'] ?? '',
+      features: (json['features'] != null)
+          ? List<String>.from(json['features'])
+          : [],
+      isFeatured: json['category'] == 'premium' || json['is_featured'] == true,
+      status: json['status'] ?? 'for_sale',
+      titleDocument: json['title_document'],
+      surveyed: json['surveyed'] == true,
+      zoning: json['zoning'],
+    );
+  }
 }
 
 class LandPropertiesScreen extends StatefulWidget {
@@ -50,6 +79,7 @@ class _LandPropertiesScreenState extends State<LandPropertiesScreen> {
   String? error;
   String selectedTypeFilter = 'all'; // all, residential, commercial, agricultural, industrial
   String selectedAreaFilter = 'all'; // all, small, medium, large
+  String selectedPriceRange = 'all'; // all, 0-20m, 20-50m, 50m+
   String searchQuery = '';
 
   @override
@@ -64,177 +94,77 @@ class _LandPropertiesScreenState extends State<LandPropertiesScreen> {
       error = null;
     });
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
     try {
-      final landData = [
-        LandProperty(
-          id: '1',
-          title: 'Prime Residential Plot',
-          price: 18000000,
-          location: 'Ajah, Lagos',
-          imageUrl: 'assets/images/land1.png',
-          landType: 'residential',
-          area: 500,
-          areaUnit: 'sqm',
-          description: 'Well-located residential plot in a developing area with good access roads and infrastructure.',
-          features: ['Good Access Road', 'Electricity Available', 'Water Source', 'Survey Plan'],
-          isFeatured: true,
-          status: 'for_sale',
-          titleDocument: 'Certificate of Occupancy',
-          surveyed: true,
-          zoning: 'Residential',
-        ),
-        LandProperty(
-          id: '2',
-          title: 'Commercial Land',
-          price: 65000000,
-          location: 'Ikeja, Lagos',
-          imageUrl: 'assets/images/land2.jpg',
-          landType: 'commercial',
-          area: 1200,
-          areaUnit: 'sqm',
-          description: 'Strategic commercial land perfect for shopping centers, offices, or mixed-use development.',
-          features: ['Corner Piece', 'High Traffic Area', 'Approved Building Plan', 'Utilities Available'],
-          isFeatured: true,
-          status: 'for_sale',
-          titleDocument: 'Deed of Assignment',
-          surveyed: true,
-          zoning: 'Commercial',
-        ),
-        LandProperty(
-          id: '3',
-          title: 'Agricultural Farmland',
-          price: 12000000,
-          location: 'Epe, Lagos',
-          imageUrl: 'assets/images/land3.jpg',
-          landType: 'agricultural',
-          area: 5,
-          areaUnit: 'acres',
-          description: 'Fertile agricultural land suitable for farming, livestock, or agribusiness investment.',
-          features: ['Fertile Soil', 'Water Source', 'Farm Access Road', 'Organic Certification Possible'],
-          isFeatured: true,
-          status: 'for_sale',
-          titleDocument: 'Survey Plan',
-          surveyed: true,
-          zoning: 'Agricultural',
-        ),
-        LandProperty(
-          id: '4',
-          title: 'Industrial Land Plot',
-          price: 95000000,
-          location: 'Agbara, Ogun State',
-          imageUrl: 'assets/images/land4.jpg',
-          landType: 'industrial',
-          area: 2000,
-          areaUnit: 'sqm',
-          description: 'Large industrial plot in established industrial estate with power and infrastructure.',
-          features: ['Industrial Estate', '33KVA Power', 'Rail Access', 'Port Proximity'],
-          status: 'for_sale',
-          titleDocument: 'Certificate of Occupancy',
-          surveyed: true,
-          zoning: 'Industrial',
-        ),
-        LandProperty(
-          id: '5',
-          title: 'Waterfront Land',
-          price: 150000000,
-          location: 'Lekki Peninsula, Lagos',
-          imageUrl: 'assets/images/land5.jpg',
-          landType: 'residential',
-          area: 800,
-          areaUnit: 'sqm',
-          description: 'Exclusive waterfront land with panoramic lagoon views in prime Lekki location.',
-          features: ['Waterfront', 'Lagoon View', 'Gated Estate', 'Jetty Access'],
-          status: 'for_sale',
-          titleDocument: 'Certificate of Occupancy',
-          surveyed: true,
-          zoning: 'Residential',
-        ),
-        LandProperty(
-          id: '6',
-          title: 'Mixed-Use Development Land',
-          price: 85000000,
-          location: 'Ibeju-Lekki, Lagos',
-          imageUrl: 'assets/images/land6.jpg',
-          landType: 'commercial',
-          area: 1500,
-          areaUnit: 'sqm',
-          description: 'Perfect for mixed-use development with residential and commercial zoning approval.',
-          features: ['Mixed-Use Zoning', 'Development Potential', 'Road Frontage', 'Utility Connections'],
-          status: 'for_sale',
-          titleDocument: 'Governor\'s Consent',
-          surveyed: true,
-          zoning: 'Mixed-Use',
-        ),
-      ];
+      final response = await http.get(
+        Uri.parse('https://mipripity-api-1.onrender.com/properties/land'),
+      );
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        List<dynamic> data;
+        if (decoded is List) {
+          data = decoded;
+        } else if (decoded is Map) {
+          data = [decoded];
+        } else {
+          data = [];
+        }
+        final List<LandProperty> loadedProperties =
+            data.map((json) => LandProperty.fromJson(json)).toList();
 
-      setState(() {
-        properties = landData;
-        filteredProperties = landData;
-        isLoading = false;
-      });
+        setState(() {
+          properties = loadedProperties;
+          filteredProperties = loadedProperties;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          error = 'Failed to load properties. Status code: ${response.statusCode}';
+          isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
-        error = e.toString();
+        error = 'Error loading properties: $e';
         isLoading = false;
       });
     }
   }
 
   void filterProperties() {
-    List<LandProperty> filtered = properties;
+    double? minPrice;
+    double? maxPrice;
 
-    // Filter by land type
-    if (selectedTypeFilter != 'all') {
-      filtered = filtered.where((property) => property.landType == selectedTypeFilter).toList();
-    }
-
-    // Filter by area size
-    if (selectedAreaFilter != 'all') {
-      switch (selectedAreaFilter) {
-        case 'small':
-          filtered = filtered.where((property) {
-            if (property.areaUnit == 'acres') {
-              return property.area <= 2;
-            } else {
-              return property.area <= 600;
-            }
-          }).toList();
+    // Parse price range
+    if (selectedPriceRange != 'all') {
+      switch (selectedPriceRange) {
+        case '0-20m':
+          maxPrice = 20000000;
           break;
-        case 'medium':
-          filtered = filtered.where((property) {
-            if (property.areaUnit == 'acres') {
-              return property.area > 2 && property.area <= 10;
-            } else {
-              return property.area > 600 && property.area <= 1500;
-            }
-          }).toList();
+        case '20-50m':
+          minPrice = 20000000;
+          maxPrice = 50000000;
           break;
-        case 'large':
-          filtered = filtered.where((property) {
-            if (property.areaUnit == 'acres') {
-              return property.area > 10;
-            } else {
-              return property.area > 1500;
-            }
-          }).toList();
+        case '50m+':
+          minPrice = 50000000;
           break;
       }
     }
 
-    // Filter by search query
-    if (searchQuery.isNotEmpty) {
-      filtered = filtered.where((property) =>
-        property.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-        property.location.toLowerCase().contains(searchQuery.toLowerCase()) ||
-        property.landType.toLowerCase().contains(searchQuery.toLowerCase())
-      ).toList();
-    }
+    List<LandProperty> filtered = properties.where((property) {
+      bool matchesStatus = selectedTypeFilter == 'all' ||
+          property.landType == selectedTypeFilter;
+      bool matchesPrice = true;
+      if (minPrice != null && property.price < minPrice) matchesPrice = false;
+      if (maxPrice != null && property.price > maxPrice) matchesPrice = false;
+      bool matchesSearch = searchQuery.isEmpty ||
+          property.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          property.location.toLowerCase().contains(searchQuery.toLowerCase());
+      return matchesStatus && matchesPrice && matchesSearch;
+    }).toList();
 
     setState(() {
       filteredProperties = filtered;
+      isLoading = false;
     });
   }
 
@@ -516,7 +446,7 @@ class _LandPropertiesScreenState extends State<LandPropertiesScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                    child: Image.asset(
+                    child: Image.network(
                       property.imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
@@ -750,7 +680,7 @@ class _LandPropertiesScreenState extends State<LandPropertiesScreen> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
+                            child: Image.network(
                               property.imageUrl,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {

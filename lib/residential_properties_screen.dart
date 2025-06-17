@@ -1,5 +1,55 @@
 import 'package:flutter/material.dart';
-import 'property_repository.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class PropertyListing {
+  final String id;
+  final String title;
+  final String imageUrl;
+  final double price;
+  final String location;
+  final int? bedrooms;
+  final int? bathrooms;
+  final double? area;
+  final String description;
+  final List<dynamic> features;
+  final String status;
+  final bool isFeatured;
+
+  PropertyListing({
+    required this.id,
+    required this.title,
+    required this.imageUrl,
+    required this.price,
+    required this.location,
+    this.bedrooms,
+    this.bathrooms,
+    this.area,
+    required this.description,
+    required this.features,
+    required this.status,
+    required this.isFeatured,
+  });
+
+  factory PropertyListing.fromJson(Map<String, dynamic> json) {
+    return PropertyListing(
+      id: json['property_id'] ?? json['id'].toString(),
+      title: json['title'] ?? '',
+      imageUrl: (json['images'] != null && (json['images'] as List).isNotEmpty)
+          ? json['images'][0]
+          : 'https://via.placeholder.com/400x200.png?text=No+Image',
+      price: double.tryParse(json['price'].toString()) ?? 0,
+      location: json['location'] ?? '',
+      bedrooms: json['bedrooms'] is int ? json['bedrooms'] : int.tryParse(json['bedrooms']?.toString() ?? ''),
+      bathrooms: json['bathrooms'] is int ? json['bathrooms'] : int.tryParse(json['bathrooms']?.toString() ?? ''),
+      area: json['area'] is double ? json['area'] : double.tryParse(json['area']?.toString() ?? ''),
+      description: json['description'] ?? '',
+      features: json['features'] ?? [],
+      status: json['category'] ?? 'for_sale',
+      isFeatured: json['category'] == 'premium' || json['is_featured'] == true,
+    );
+  }
+}
 
 class ResidentialPropertiesScreen extends StatefulWidget {
   const ResidentialPropertiesScreen({super.key});
@@ -9,7 +59,6 @@ class ResidentialPropertiesScreen extends StatefulWidget {
 }
 
 class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScreen> {
-  final PropertyRepository _repository = PropertyRepository();
   List<PropertyListing> properties = [];
   List<PropertyListing> filteredProperties = [];
   bool isLoading = true;
@@ -31,69 +80,74 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
     });
 
     try {
-      // Check if database is ready
-      final isReady = await _repository.isDatabaseReady();
-      if (!isReady) {
-        throw Exception('Database not initialized properly');
-      }
+      final response = await http.get(
+        Uri.parse('https://mipripity-api-1.onrender.com/properties/residential'),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final List<PropertyListing> loadedProperties =
+            data.map((json) => PropertyListing.fromJson(json)).toList();
 
-      final residentialData = await _repository.getResidentialProperties();
-      
-      setState(() {
-        properties = residentialData;
-        filteredProperties = residentialData;
-        isLoading = false;
-      });
+        setState(() {
+          properties = loadedProperties;
+          filteredProperties = loadedProperties;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          error = 'Failed to load properties. Status code: ${response.statusCode}';
+          isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
-        error = e.toString();
+        error = 'Error loading properties: $e';
         isLoading = false;
       });
     }
   }
 
-  void filterProperties() async {
+  void filterProperties() {
     setState(() {
       isLoading = true;
     });
 
-    try {
-      double? minPrice;
-      double? maxPrice;
-      
-      // Parse price range
-      if (selectedPriceRange != 'all') {
-        switch (selectedPriceRange) {
-          case '0-20m':
-            maxPrice = 20000000;
-            break;
-          case '20-50m':
-            minPrice = 20000000;
-            maxPrice = 50000000;
-            break;
-          case '50m+':
-            minPrice = 50000000;
-            break;
-        }
+    double? minPrice;
+    double? maxPrice;
+
+    // Parse price range
+    if (selectedPriceRange != 'all') {
+      switch (selectedPriceRange) {
+        case '0-20m':
+          maxPrice = 20000000;
+          break;
+        case '20-50m':
+          minPrice = 20000000;
+          maxPrice = 50000000;
+          break;
+        case '50m+':
+          minPrice = 50000000;
+          break;
       }
-
-      final filtered = await _repository.getFilteredResidentialProperties(
-        status: selectedFilter != 'all' ? selectedFilter : null,
-        minPrice: minPrice,
-        maxPrice: maxPrice,
-        searchQuery: searchQuery.isNotEmpty ? searchQuery : null,
-      );
-
-      setState(() {
-        filteredProperties = filtered;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        error = e.toString();
-        isLoading = false;
-      });
     }
+
+    List<PropertyListing> filtered = properties.where((property) {
+      bool matchesStatus = selectedFilter == 'all' ||
+          (selectedFilter == 'for_sale' && property.status == 'for_sale') ||
+          (selectedFilter == 'for_rent' && property.status == 'for_rent');
+      bool matchesPrice = true;
+      if (minPrice != null && property.price < minPrice) matchesPrice = false;
+      if (maxPrice != null && property.price > maxPrice) matchesPrice = false;
+      bool matchesSearch = searchQuery.isEmpty ||
+          property.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          property.location.toLowerCase().contains(searchQuery.toLowerCase());
+      return matchesStatus && matchesPrice && matchesSearch;
+    }).toList();
+
+    setState(() {
+      filteredProperties = filtered;
+      isLoading = false;
+    });
   }
 
   String formatPrice(double price) {
@@ -158,7 +212,7 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
               },
             ),
           ),
-          
+
           // Filter Chips
           Container(
             color: Colors.white,
@@ -351,7 +405,7 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
                     width: double.infinity,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage(property.imageUrl),
+                        image: NetworkImage(property.imageUrl),
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -383,9 +437,9 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: property.status == 'for_rent' 
-                        ? Colors.green 
-                        : const Color(0xFF000080),
+                      color: property.status == 'for_rent'
+                          ? Colors.green
+                          : const Color(0xFF000080),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -400,7 +454,7 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
                 ),
               ],
             ),
-            
+
             // Property Details
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -447,7 +501,7 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Property Features
                   Row(
                     children: [
@@ -473,7 +527,7 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Description
                   Text(
                     property.description,
@@ -486,7 +540,7 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // Key Features
                   Wrap(
                     spacing: 8,
@@ -499,7 +553,7 @@ class _ResidentialPropertiesScreenState extends State<ResidentialPropertiesScree
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          feature,
+                          feature.toString(),
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFF000080),

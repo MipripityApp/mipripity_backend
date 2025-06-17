@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/user_provider.dart';
-// Import the UserApi that uses the render backend
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,7 +13,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  
+
   bool _showPassword = false;
   bool _rememberMe = false;
   late AnimationController _animationController;
@@ -22,18 +22,34 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    _loadSavedCredentials();
+    _setupAnimation();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rememberMe = prefs.getBool('remember_me') ?? false;
+    if (rememberMe) {
+      setState(() {
+        _rememberMe = true;
+        _emailController.text = prefs.getString('email') ?? '';
+      });
+    }
+  }
+
+  void _setupAnimation() {
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
+
     _fadeInAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.easeOut,
       ),
     );
-    
-    // Start the animation after a short delay
+
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
         _animationController.forward();
@@ -49,50 +65,83 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
-  void _handleLogin() async {
-    // Validate inputs
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter both email and password')),
-      );
-      return;
+  Future<void> _handleLogin() async {
+    if (!_validateFields()) return;
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    // Get UserProvider instance
+    final userProvider = provider.Provider.of<UserProvider>(context, listen: false);
+
+    // Save email if remember me is checked
+    if (_rememberMe) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_me', true);
+      await prefs.setString('email', email);
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_me', false);
+      await prefs.remove('email');
     }
 
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    
-    // This login process uses the render backend API at 'https://mipripity-api-1.onrender.com'
-    // through UserProvider and UserService
-    
-    final success = await userProvider.login(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    // Attempt login using UserProvider (now uses Firebase Auth)
+    final success = await userProvider.login(email, password);
 
-    if (mounted) {
-      if (success) {
-        print('Login successful, navigating to dashboard');
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(userProvider.error ?? 'Login failed')),
-        );
-      }
+    if (!mounted) return;
+
+    if (success) {
+      // Login successful, navigate to dashboard
+      Navigator.pushReplacementNamed(context, '/dashboard');
+    } else {
+      // Login failed, show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userProvider.error ?? 'Login failed')),
+      );
     }
   }
 
-  void _handleGoogleLogin() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
+  bool _validateFields() {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter both email and password'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid email address'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    // Use UserProvider for Google sign-in
+    final userProvider = provider.Provider.of<UserProvider>(context, listen: false);
     
     final success = await userProvider.loginWithGoogle();
+    
+    if (!mounted) return;
 
-    if (mounted) {
-      if (success) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(userProvider.error ?? 'Google login failed')),
-        );
-      }
+    if (success) {
+      // Login successful, navigate to dashboard
+      Navigator.pushReplacementNamed(context, '/dashboard');
+    } else {
+      // Login failed, show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userProvider.error ?? 'Google sign-in failed')),
+      );
     }
   }
 
@@ -104,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: Consumer<UserProvider>(
+        child: provider.Consumer<UserProvider>(
           builder: (context, userProvider, child) {
             return Row(
               children: [
@@ -134,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                          
+
                           // Gradient overlay at bottom
                           Positioned(
                             bottom: 0,
@@ -151,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                          
+
                           // Decorative elements
                           Positioned(
                             top: 80,
@@ -181,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       ),
                     ),
                   ),
-                
+
                 // Right side - Form
                 Expanded(
                   child: Container(
@@ -220,9 +269,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 16),
-                        
+
                         // Form content with animation
                         Expanded(
                           child: SingleChildScrollView(
@@ -256,7 +305,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ),
                                       ),
                                       const SizedBox(height: 32),
-                                      
+
                                       // Error message if any
                                       if (userProvider.error != null) ...[
                                         Container(
@@ -281,7 +330,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ),
                                         const SizedBox(height: 24),
                                       ],
-                                      
+
                                       // Email field
                                       const Text(
                                         'Email Address',
@@ -333,7 +382,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ),
                                       ),
                                       const SizedBox(height: 20),
-                                      
+
                                       // Password field with header row
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -423,7 +472,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ),
                                       ),
                                       const SizedBox(height: 20),
-                                      
+
                                       // Remember me checkbox
                                       Row(
                                         children: [
@@ -454,7 +503,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ],
                                       ),
                                       const SizedBox(height: 24),
-                                      
+
                                       // Login button
                                       SizedBox(
                                         width: double.infinity,
@@ -498,7 +547,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ),
                                       ),
                                       const SizedBox(height: 32),
-                                      
+
                                       // Sign up link
                                       Center(
                                         child: RichText(
@@ -529,7 +578,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ),
                                       ),
                                       const SizedBox(height: 32),
-                                      
+
                                       // Or continue with divider
                                       Row(
                                         children: [
@@ -558,7 +607,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         ],
                                       ),
                                       const SizedBox(height: 24),
-                                      
+
                                       // Google sign-in button
                                       SizedBox(
                                         width: double.infinity,
